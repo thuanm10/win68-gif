@@ -169,7 +169,7 @@
       <p class="note">• <b>Giữ tab này luôn mở</b> trong lúc phát. Trang tự gửi từng khung hình xuống bàn phím, đóng tab là hiệu ứng đứng lại ở khung cuối.<br>
       • Thu nhỏ hoặc chuyển sang tab khác vẫn chạy được.<br>
       • Hỗ trợ <b>AULA Hero 68 HE</b> (VID 372E) và <b>AULA Win68 HE bản thường</b> (VID 2E3C). Win68 HE <b>Pro / Max</b> dùng giao thức khác nên chưa điều khiển được.<br>
-      • Trong lúc phát, bàn phím ở chế độ đèn <b>Custom</b> và màu từng phím được ghi liên tục (cũng là cách các trang chạy GIF khác đang làm).</p>
+      • Hero 68 HE: màu được đẩy thẳng ra đèn ở chế độ thời gian thực (như phần mềm nhạc của Aula), không ghi vào bộ nhớ nên không chớp. Win68 HE: màu được ghi vào ô Custom như các trang chạy GIF khác.</p>
       <div id="log" class="log" style="margin-top:10px"></div>
     </section>
   </div>
@@ -189,7 +189,11 @@
       0x04/0x01 = đèn chính [mode, mix, r, g, b, độ sáng 0–20, tốc độ] (mode 19 = Custom)
       0x06      = màu từng phím [pos u16, r, g, b] × tối đa 11 phím / gói, gói có đánh số
       0x84/0x01, 0x86 = đọc lại đèn chính / màu từng phím (để khôi phục)
-      Nguồn: github.com/b9rnardo/aula-hero68-webdriver (đã kiểm chứng trên phím thật)
+      0x08/0x01 = màu thời gian thực (giao thức của HEROMusicServe, KHÔNG ghi bộ nhớ):
+                  nhóm [R, G, B, số phím, pos…], cắt thành gói 56 byte có đánh số, không chờ phản hồi
+      0x08/0x02 = cả bàn phím một màu thời gian thực ([R, G, B])
+      Lệnh 0x06 ghi vào bộ nhớ nên phát liên tục làm đèn chớp tắt → chỉ dùng 0x08 để phát GIF.
+      Nguồn: github.com/b9rnardo/aula-hero68-webdriver, AULA-HERO68-Lighting-Studio (thử trên phím thật)
    ====================================================================== */
 
 const KEYS_WIN68 = [[22,"Esc",10,15,35,35],[23,"1",48,15,35,35],[24,"2",86,15,35,35],[25,"3",124,15,35,35],[26,"4",162,15,35,35],[27,"5",200,15,35,35],[28,"6",238,15,35,35],[29,"7",276,15,35,35],[30,"8",314,15,35,35],[31,"9",352,15,35,35],[32,"0",390,15,35,35],[33,"-",428,15,35,35],[34,"=",466,15,35,35],[36,"Back",504,15,73,35],[38,"Ins",580,15,35,35],
@@ -360,34 +364,40 @@ const Hero68Driver = {
   },
   async enter() {
     this.last = null;
-    await this.setLight([19, 0, 0, 0, 0, 20, 0]);   // Custom, độ sáng tối đa (20)
+    await this.solid([0, 0, 0]);                     // vào chế độ thời gian thực, xoá màn
   },
-  async writeKeys(list) {                            // list: [[pos, [r,g,b]]…]
+  async solid(rgb) { await sendRaw(9, heroFrame(0x08, { sub: 2, data: rgb })); },
+  async writeKeys(list) {                            // ghi bền (0x06) — chỉ dùng khi khôi phục
     const groups = [];
     for (let i = 0; i < list.length; i += 11) groups.push(list.slice(i, i + 11));
-    let ok = true;
     for (let gi = 0; gi < groups.length; gi++) {
       const data = groups[gi].flatMap(([pos, c]) => [...u16(pos), c[0], c[1], c[2]]);
-      const r = await query(heroFrame(0x06, { data, total: groups.length, index: gi }),
-                            d => d[0] === 0x06 && d[3] === groups.length && d[4] === gi, 250);
-      if (!r) ok = false;
+      await query(heroFrame(0x06, { data, total: groups.length, index: gi }),
+                  d => d[0] === 0x06 && d[3] === groups.length && d[4] === gi, 400);
     }
-    return { n: groups.length, ok };
   },
-  async frame(colors) {
-    const now = performance.now(), full = !this.last || now - this.lastFull > 2000;
-    const list = [];
+  async frame(colors) {                              // màu thời gian thực (0x08/0x01), cả khung mỗi lần
+    const groups = new Map();
     this.keys.forEach(([pos], k) => {
-      const c = colors[k], p = this.last && this.last[k];
-      if (full || !p || p[0] !== c[0] || p[1] !== c[1] || p[2] !== c[2]) list.push([pos, c]);
+      const c = colors[k], id = (c[0] << 16) | (c[1] << 8) | c[2];
+      if (!groups.has(id)) groups.set(id, { c, pos: [] });
+      groups.get(id).pos.push(pos);
     });
-    if (!list.length) return 0;
-    const { n, ok } = await this.writeKeys(list);
-    if (full) this.lastFull = now;
-    this.last = ok ? colors.map(c => c.slice()) : null;   // mất gói → lần sau gửi lại đủ
-    return n;
+    const payload = [];
+    for (const { c, pos } of groups.values())
+      for (let i = 0; i < pos.length; i += 250) {
+        const part = pos.slice(i, i + 250);
+        payload.push(c[0], c[1], c[2], part.length, ...part);
+      }
+    const chunks = [];
+    for (let i = 0; i < payload.length; i += 56) chunks.push(payload.slice(i, i + 56));
+    for (let i = 0; i < chunks.length; i++)
+      await sendRaw(9, heroFrame(0x08, { sub: 1, data: chunks[i], total: chunks.length, index: i }));
+    return chunks.length;
   },
   async restore() {
+    await this.solid([0, 0, 0]);
+    await sleep(30);
     if (this.savedColors) await this.writeKeys(this.keys.map(([pos]) => [pos, this.savedColors.get(pos) || [0, 0, 0]]));
     if (this.savedLight) await this.setLight(this.savedLight);
     return !!this.savedLight;
