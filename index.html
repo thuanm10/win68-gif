@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Win68 HE · Đèn GIF</title>
+<style>
+  :root{
+    --bg:#0b0d12; --panel:#12151c; --panel2:#181c25; --line:#252a36;
+    --text:#e8ebf2; --muted:#8b93a7; --accent:#3d7cff; --accent2:#7a5cff;
+    --ok:#2ecc8f; --warn:#ffb547; --err:#ff5d6c;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 600px at 70% -10%,#1b2340 0,transparent 60%),var(--bg);
+    color:var(--text);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  header{max-width:1180px;margin:0 auto;padding:28px 20px 8px}
+  .eyebrow{color:var(--accent);font-weight:600;font-size:13px;letter-spacing:.06em;text-transform:uppercase}
+  h1{margin:6px 0 4px;font-size:30px;line-height:1.15}
+  header p{margin:0;color:var(--muted)}
+  main{max-width:1180px;margin:0 auto;padding:16px 20px 60px;display:grid;gap:16px;grid-template-columns:340px 1fr}
+  @media (max-width:900px){main{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
+  .card h2{margin:0 0 4px;font-size:17px}
+  .card .sub{margin:0 0 14px;color:var(--muted);font-size:13.5px}
+  .stack{display:flex;flex-direction:column;gap:16px}
+  button{font:inherit;border:1px solid var(--line);background:var(--panel2);color:var(--text);
+    border-radius:10px;padding:9px 14px;cursor:pointer;transition:.15s}
+  button:hover:not(:disabled){border-color:#3a4256;background:#1f2430}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  button.primary{background:linear-gradient(135deg,var(--accent),var(--accent2));border-color:transparent;font-weight:600}
+  button.primary:hover:not(:disabled){filter:brightness(1.1)}
+  button.danger{border-color:#4a2530;color:#ffb3bb}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .devbox{display:flex;gap:12px;align-items:center;background:var(--panel2);border:1px solid var(--line);
+    border-radius:12px;padding:12px;margin-bottom:12px}
+  .dot{width:10px;height:10px;border-radius:50%;background:#555;flex:none}
+  .dot.on{background:var(--ok);box-shadow:0 0 10px var(--ok)}
+  .devname{font-weight:600}
+  .devmeta{color:var(--muted);font-size:13px}
+  ol.steps{margin:10px 0 0;padding-left:18px;color:var(--muted);font-size:13.5px}
+  ol.steps li{margin:3px 0}
+  .tabs{display:flex;gap:6px;margin-bottom:12px}
+  .tabs button{flex:1;padding:7px}
+  .tabs button.active{border-color:var(--accent);color:#fff;background:#1a2340}
+  .drop{border:1.5px dashed #34405a;border-radius:12px;padding:22px 14px;text-align:center;color:var(--muted);cursor:pointer}
+  .drop.hover{border-color:var(--accent);background:#141b2e}
+  .drop b{color:var(--text)}
+  .presets{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .preset{padding:6px;text-align:left;border-radius:10px}
+  .preset canvas{width:100%;height:auto;display:block;border-radius:6px;background:#000}
+  .preset span{display:block;font-size:13px;margin-top:5px}
+  .preset.active{border-color:var(--accent);background:#1a2340}
+  .srcinfo{font-size:13px;color:var(--muted);margin-top:10px;min-height:20px;word-break:break-word}
+  .kbwrap{background:#07080c;border:1px solid var(--line);border-radius:12px;overflow:hidden;position:relative}
+  #preview{width:100%;display:block;cursor:grab;touch-action:none}
+  #preview.drag{cursor:grabbing}
+  .hint{position:absolute;left:12px;bottom:8px;font-size:12px;color:#7d869b;pointer-events:none}
+  .ctrls{display:grid;grid-template-columns:repeat(2,1fr);gap:10px 18px;margin-top:14px}
+  @media (max-width:600px){.ctrls{grid-template-columns:1fr}}
+  .ctrl label{display:flex;justify-content:space-between;font-size:13px;color:var(--muted)}
+  .ctrl label b{color:var(--text);font-weight:600}
+  input[type=range]{width:100%;accent-color:var(--accent)}
+  .checks{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-size:13.5px;color:var(--muted)}
+  .checks input{accent-color:var(--accent)}
+  .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;align-items:center}
+  .stat{margin-left:auto;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .log{font:12.5px/1.45 ui-monospace,Consolas,monospace;color:#9aa3b8;background:#0a0c11;border:1px solid var(--line);
+    border-radius:10px;padding:10px;height:120px;overflow:auto;white-space:pre-wrap}
+  .log .e{color:var(--err)} .log .w{color:var(--warn)} .log .o{color:var(--ok)}
+  .note{font-size:13.5px;color:var(--muted)}
+  .note b{color:var(--text)}
+  .warnbox{background:#2a1f0c;border:1px solid #5a4316;color:#ffd590;border-radius:10px;padding:10px 12px;font-size:13.5px;margin-bottom:12px}
+  .hidden{display:none!important}
+</style>
+</head>
+<body>
+<header>
+  <div class="eyebrow">AULA WIN68 HE · Đèn từng phím</div>
+  <h1>Chạy GIF trên đèn bàn phím</h1>
+  <p>Tải GIF, ảnh hoặc video lên (hay chọn mẫu có sẵn), căn theo từng phím rồi phát thẳng lên bàn phím qua cáp USB.</p>
+</header>
+
+<main>
+  <div class="stack">
+    <!-- 1. Kết nối -->
+    <section class="card">
+      <h2>1 · Kết nối bàn phím</h2>
+      <p class="sub">Cần Chrome hoặc Edge trên máy tính, cắm dây USB.</p>
+      <div id="nohid" class="warnbox hidden">Trình duyệt này không hỗ trợ WebHID. Hãy mở trang bằng <b>Chrome</b> hoặc <b>Edge</b> trên máy tính.</div>
+      <div class="devbox">
+        <div id="dot" class="dot"></div>
+        <div>
+          <div id="devName" class="devname">Chưa kết nối</div>
+          <div id="devMeta" class="devmeta">AULA WIN68 HE · VID 2E3C · PID C365</div>
+        </div>
+      </div>
+      <div class="row">
+        <button id="btnConnect" class="primary">Kết nối bàn phím USB</button>
+        <button id="btnDisconnect" class="hidden">Ngắt</button>
+      </div>
+      <ol class="steps">
+        <li>Tắt driver/phần mềm đèn khác (web Aula, SignalRGB, OpenRGB…).</li>
+        <li>Bấm nút trên, chọn <b>WIN 68 HE</b> rồi bấm <b>Connect</b>.</li>
+      </ol>
+    </section>
+
+    <!-- 2. Nguồn hiệu ứng -->
+    <section class="card">
+      <h2>2 · Chọn hiệu ứng</h2>
+      <p class="sub">GIF của bạn hoặc mẫu có sẵn.</p>
+      <div class="tabs">
+        <button id="tabFile" class="active">GIF / ảnh / video</button>
+        <button id="tabPreset">Mẫu có sẵn</button>
+      </div>
+      <div id="paneFile">
+        <div id="drop" class="drop">
+          <b>Bấm để chọn file</b> hoặc kéo thả vào đây<br>
+          <span style="font-size:12.5px">GIF, PNG, JPG, WEBP, MP4, WEBM</span>
+        </div>
+        <input id="file" type="file" accept="image/*,video/*" class="hidden">
+      </div>
+      <div id="panePreset" class="hidden">
+        <div id="presets" class="presets"></div>
+      </div>
+      <div id="srcInfo" class="srcinfo">Chưa chọn hiệu ứng.</div>
+    </section>
+  </div>
+
+  <div class="stack">
+    <!-- 3. Căn chỉnh & phát -->
+    <section class="card">
+      <h2>3 · Căn GIF theo từng phím</h2>
+      <p class="sub">Kéo để di chuyển, cuộn chuột để phóng to/thu nhỏ. Khung nét đứt là viền của GIF.</p>
+      <div class="kbwrap">
+        <canvas id="preview"></canvas>
+        <div class="hint">Kéo để di chuyển · Cuộn để thu phóng</div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <button data-fit="cover">Phủ kín</button>
+        <button data-fit="contain">Vừa khung</button>
+        <button data-fit="stretch">Kéo giãn</button>
+        <button id="btnFlip">Lật ngang</button>
+      </div>
+      <div class="ctrls">
+        <div class="ctrl"><label>Độ sáng <b id="vBright">100%</b></label><input id="bright" type="range" min="5" max="100" value="100"></div>
+        <div class="ctrl"><label>Độ đậm màu <b id="vSat">120%</b></label><input id="sat" type="range" min="0" max="200" value="120"></div>
+        <div class="ctrl"><label>Tốc độ <b id="vSpeed">1.0×</b></label><input id="speed" type="range" min="10" max="300" value="100"></div>
+        <div class="ctrl"><label>Khung hình/giây tối đa <b id="vFps">30</b></label><input id="fps" type="range" min="5" max="40" value="30"></div>
+      </div>
+      <div class="checks">
+        <label><input id="gamma" type="checkbox" checked> Hiệu chỉnh màu cho LED</label>
+        <label><input id="restore" type="checkbox" checked> Khi dừng, trả đèn về như cũ</label>
+      </div>
+      <div class="actions">
+        <button id="btnPreview">▶ Xem trước</button>
+        <button id="btnPlay" class="primary">Phát lên bàn phím</button>
+        <button id="btnStop" class="danger">■ Dừng</button>
+        <span id="stat" class="stat"></span>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Lưu ý</h2>
+      <p class="note">• <b>Giữ tab này luôn mở</b> trong lúc phát. Trang tự gửi từng khung hình xuống bàn phím, đóng tab là hiệu ứng đứng lại ở khung cuối.<br>
+      • Thu nhỏ hoặc chuyển sang tab khác vẫn chạy được.<br>
+      • Chỉ dùng cho <b>WIN68 HE bản thường</b> (driver gốc là hed.aulacn.com). Bản <b>Pro / Max</b> dùng giao thức khác nên trang này không điều khiển được.<br>
+      • Dữ liệu màu được ghi vào ô <b>Custom 1</b> của bàn phím (cũng là cách các trang chạy GIF khác đang làm).</p>
+      <div id="log" class="log" style="margin-top:10px"></div>
+    </section>
+  </div>
+</main>
+
+<script>
+"use strict";
+/* ======================================================================
+   AULA WIN68 HE — giao thức (họ WIN60/68 HE, VID 0x2E3C PID 0xC365)
+   Lấy từ driver web chính hãng hed.aulacn.com (agreement.min.js):
+   - Output report ID 1, 63 byte.
+   - cmd 7  : đặt chế độ đèn   [7,0,0,0,14, mode, brightness, speed, fgRGB, bgRGB, dir, fullColor, power]
+              mode 10 = Custom (màu từng phím)
+   - cmd 9  : bảng màu từng phím, 396 byte (132 ô × RGB), offset = keyIndex*3,
+              gửi thành 8 gói: [9, slot, pageHi, pageLo, len, ...54 byte]
+   - cmd 10 : đọc danh sách hiệu ứng + độ sáng/tốc độ tối đa
+   - cmd 7,1 / 9,0x80 : đọc lại trạng thái đèn / bảng màu Custom 1 (để khôi phục)
+   ====================================================================== */
+const VID = 0x2E3C, PID = 0xC365, USAGE_PAGE = 0xFF1B, USAGE = 0x91;
+const TABLE_BYTES = 396, CHUNK = 54, PAGES = Math.ceil(TABLE_BYTES / CHUNK);
+const MODE_CUSTOM = 10, SLOT = 0;
+
+/* Bố cục 68 phím WIN68 HE (index thiết bị, nhãn, x, y, rộng, cao) — từ file
+   cấu hình chính hãng SI2828HEARGB / SI2828KZHEARGB. */
+const KEYS = [[22,"Esc",10,15,35,35],[23,"1",48,15,35,35],[24,"2",86,15,35,35],[25,"3",124,15,35,35],[26,"4",162,15,35,35],[27,"5",200,15,35,35],[28,"6",238,15,35,35],[29,"7",276,15,35,35],[30,"8",314,15,35,35],[31,"9",352,15,35,35],[32,"0",390,15,35,35],[33,"-",428,15,35,35],[34,"=",466,15,35,35],[36,"Back",504,15,73,35],[38,"Ins",580,15,35,35],
+[44,"Tab",10,53,54,35],[45,"Q",67,53,35,35],[46,"W",105,53,35,35],[47,"E",143,53,35,35],[48,"R",181,53,35,35],[49,"T",219,53,35,35],[50,"Y",257,53,35,35],[51,"U",295,53,35,35],[52,"I",333,53,35,35],[53,"O",371,53,35,35],[54,"P",409,53,35,35],[55,"[",447,53,35,35],[56,"]",485,53,35,35],[58,"\\",523,53,54,35],[60,"Del",580,53,35,35],
+[66,"Caps",10,91,63,35],[68,"A",76,91,35,35],[69,"S",114,91,35,35],[70,"D",152,91,35,35],[71,"F",190,91,35,35],[72,"G",228,91,35,35],[73,"H",266,91,35,35],[74,"J",304,91,35,35],[75,"K",342,91,35,35],[76,"L",380,91,35,35],[77,";",418,91,35,35],[78,"'",456,91,35,35],[80,"Enter",494,91,83,35],[82,"PgUp",580,91,35,35],
+[88,"Shift",10,129,83,35],[90,"Z",96,129,35,35],[91,"X",134,129,35,35],[92,"C",172,129,35,35],[93,"V",210,129,35,35],[94,"B",248,129,35,35],[95,"N",286,129,35,35],[96,"M",324,129,35,35],[97,",",362,129,35,35],[98,".",400,129,35,35],[99,"/",438,129,35,35],[101,"Shift",476,129,63,35],[103,"↑",542,129,35,35],[104,"PgDn",580,129,35,35],
+[110,"Ctrl",10,167,47,35],[111,"Win",60,167,47,35],[112,"Alt",110,167,47,35],[116,"Space",160,167,227,35],[119,"Alt",390,167,35,35],[121,"Fn",428,167,35,35],[122,"Ctrl",466,167,35,35],[124,"←",504,167,35,35],[125,"↓",542,167,35,35],[126,"→",580,167,35,35]];
+const KB = { x0: 10, y0: 15, w: 605, h: 187 };   // vùng bao quanh các phím
+
+/* ---------------- tiện ích giao diện ---------------- */
+const $ = id => document.getElementById(id);
+function log(msg, cls = "") {
+  const el = $("log"), line = document.createElement("div");
+  if (cls) line.className = cls;
+  line.textContent = new Date().toLocaleTimeString("vi-VN") + "  " + msg;
+  el.appendChild(line); el.scrollTop = el.scrollHeight;
+}
+
+/* ======================================================================
+   WebHID
+   ====================================================================== */
+let dev = null, maxBright = 4, maxSpeed = 4;
+let savedLight = null, savedTable = null;
+const listeners = new Set();
+let chain = Promise.resolve();
+
+function pkt(bytes) { const b = new Uint8Array(63); b.set(bytes.slice(0, 63)); return b; }
+function send(bytes) {
+  const p = chain.then(() => dev.sendReport(1, bytes instanceof Uint8Array && bytes.length === 63 ? bytes : pkt(bytes)));
+  chain = p.catch(() => {});
+  return p;
+}
+function onInput(e) {
+  if (e.reportId !== 1) return;
+  const d = new Uint8Array(e.data.buffer, e.data.byteOffset, e.data.byteLength);
+  for (const l of [...listeners]) l(d);
+}
+function waitFor(match, timeout) {
+  return new Promise(res => {
+    const l = d => { if (match(d)) { listeners.delete(l); clearTimeout(t); res(d.slice()); } };
+    const t = setTimeout(() => { listeners.delete(l); res(null); }, timeout);
+    listeners.add(l);
+  });
+}
+async function query(bytes, match, timeout = 600) {
+  const p = waitFor(match, timeout);
+  await send(bytes);
+  return p;
+}
+
+function pickInterface(list) {
+  const score = d => {
+    let s = 0;
+    for (const c of d.collections) {
+      if (c.usagePage === USAGE_PAGE && c.usage === USAGE) s += 10;
+      else if (c.usagePage >= 0xFF00) s += 3;
+      if (c.outputReports && c.outputReports.some(r => r.reportId === 1)) s += 2;
+    }
+    return s;
+  };
+  return [...list].filter(d => d.vendorId === VID && d.productId === PID).sort((a, b) => score(b) - score(a))[0] || null;
+}
+
+async function connect(silent = false) {
+  if (!("hid" in navigator)) { $("nohid").classList.remove("hidden"); return false; }
+  try {
+    let list;
+    if (silent) list = await navigator.hid.getDevices();
+    else list = await navigator.hid.requestDevice({ filters: [
+      { vendorId: VID, productId: PID, usagePage: USAGE_PAGE, usage: USAGE },
+      { vendorId: VID, productId: PID } ] });
+    const d = pickInterface(list);
+    if (!d) { if (!silent) log("Không chọn thiết bị nào, hoặc thiết bị không phải WIN68 HE (2E3C:C365).", "w"); return false; }
+    if (!d.opened) await d.open();
+    dev = d;
+    dev.addEventListener("inputreport", onInput);
+    setConnectedUI(true);
+    log("Đã kết nối: " + (dev.productName || "AULA HE"), "o");
+    if (dev.productName && /60/.test(dev.productName) && !/68/.test(dev.productName))
+      log("Lưu ý: thiết bị báo tên “" + dev.productName + "”. Trang này dùng bố cục phím WIN68 HE.", "w");
+    await readDeviceState();
+    return true;
+  } catch (err) {
+    log("Kết nối lỗi: " + err.message, "e");
+    if (/open|access|busy/i.test(err.message)) log("Thiết bị có thể đang bị driver/tab khác giữ. Hãy đóng chúng rồi thử lại.", "w");
+    return false;
+  }
+}
+
+async function readDeviceState() {
+  // độ sáng / tốc độ tối đa
+  const list = await query([10], d => d[0] === 10, 500);
+  if (list) {
+    const len = list[4], p = list.slice(5, 5 + len);
+    if (p.length >= 4) { maxBright = p[len - 1] || 4; maxSpeed = p[len - 2] || 4; }
+  }
+  // trạng thái đèn hiện tại (để khôi phục)
+  const light = await query([7, 1], d => d[0] === 7 && d[4] >= 12, 500);
+  savedLight = light ? light.slice(5, 17) : null;
+  // bảng màu Custom 1 hiện tại (để khôi phục)
+  savedTable = await readCustomTable(SLOT);
+  $("devMeta").textContent = "WIN68 HE · đã sẵn sàng phát";
+  log(savedLight ? "Đã lưu trạng thái đèn hiện tại để khôi phục khi dừng." : "Không đọc được trạng thái đèn (vẫn phát được bình thường).", savedLight ? "" : "w");
+}
+
+function readCustomTable(slot) {
+  return new Promise(res => {
+    const table = new Uint8Array(TABLE_BYTES), got = new Set();
+    const l = d => {
+      if (d[0] !== 9 || d[1] !== (0x80 | slot)) return;
+      const page = (d[2] << 8) | d[3], len = Math.min(d[4], CHUNK, d.length - 5);
+      const off = page * CHUNK;
+      if (off < TABLE_BYTES) table.set(d.subarray(5, 5 + Math.min(len, TABLE_BYTES - off)), off);
+      got.add(page);
+      if (got.size >= PAGES) finish(table);
+    };
+    const finish = v => { listeners.delete(l); clearTimeout(t); res(v); };
+    const t = setTimeout(() => finish(null), 1500);
+    listeners.add(l);
+    send([9, 0x80 | slot]).catch(() => finish(null));
+  });
+}
+
+function lightPacket(bytes12) { return pkt([7, 0, 0, 0, 14, ...bytes12]); }
+async function enterCustomMode() {
+  // mode 10, độ sáng tối đa (độ sáng thật chỉnh bằng phần mềm), nguồn bật
+  await send(lightPacket([MODE_CUSTOM, maxBright, maxSpeed, 255, 255, 255, 0, 0, 0, 0, 0, 0]));
+}
+
+let lastTable = null, lastFull = 0, busy = false, sentFrames = 0;
+async function sendTable(table) {
+  if (!dev || busy) return false;
+  busy = true;
+  const now = performance.now(), full = !lastTable || now - lastFull > 2000;
+  try {
+    let n = 0;
+    for (let p = 0; p < PAGES; p++) {
+      const s = p * CHUNK, len = Math.min(CHUNK, TABLE_BYTES - s);
+      if (!full) {
+        let same = true;
+        for (let i = s; i < s + len; i++) if (table[i] !== lastTable[i]) { same = false; break; }
+        if (same) continue;
+      }
+      const b = new Uint8Array(63);
+      b[0] = 9; b[1] = SLOT; b[2] = (p >> 8) & 255; b[3] = p & 255; b[4] = len;
+      b.set(table.subarray(s, s + len), 5);
+      await send(b); n++;
+    }
+    if (full) lastFull = now;
+    lastTable = table.slice();
+    sentFrames++; pktCount += n;
+    return true;
+  } catch (err) {
+    log("Gửi dữ liệu lỗi: " + err.message + " — đã dừng phát.", "e");
+    stopAll(false);
+    return false;
+  } finally { busy = false; }
+}
+
+async function restoreLight() {
+  if (!dev) return;
+  try {
+    if (savedTable) {
+      for (let p = 0; p < PAGES; p++) {
+        const s = p * CHUNK, len = Math.min(CHUNK, TABLE_BYTES - s);
+        const b = new Uint8Array(63);
+        b[0] = 9; b[1] = SLOT; b[2] = (p >> 8) & 255; b[3] = p & 255; b[4] = len;
+        b.set(savedTable.subarray(s, s + len), 5);
+        await send(b);
+      }
+    }
+    if (savedLight) await send(lightPacket([...savedLight]));
+    log(savedLight ? "Đã trả đèn về trạng thái trước khi phát." : "Đã dừng (đèn giữ khung hình cuối).", "o");
+  } catch (err) { log("Khôi phục đèn lỗi: " + err.message, "e"); }
+}
+
+async function disconnect() {
+  await stopAll(true);
+  try { if (dev) { dev.removeEventListener("inputreport", onInput); await dev.close(); } } catch {}
+  dev = null; setConnectedUI(false); log("Đã ngắt kết nối.");
+}
+
+function setConnectedUI(on) {
+  $("dot").classList.toggle("on", on);
+  $("devName").textContent = on ? (dev.productName || "AULA WIN68 HE") : "Chưa kết nối";
+  if (!on) $("devMeta").textContent = "AULA WIN68 HE · VID 2E3C · PID C365";
+  $("btnConnect").classList.toggle("hidden", on);
+  $("btnDisconnect").classList.toggle("hidden", !on);
+}
+
+if ("hid" in navigator) {
+  navigator.hid.addEventListener("disconnect", e => {
+    if (dev && e.device === dev) { playing = false; dev = null; setConnectedUI(false); updateButtons(); log("Bàn phím đã bị rút ra.", "w"); }
+  });
+} else {
+  $("nohid").classList.remove("hidden");
+}
+
+/* ======================================================================
+   Nguồn hiệu ứng: GIF / ảnh / video / mẫu có sẵn
+   Mỗi nguồn có: w, h, draw(ctx, tMs)
+   ====================================================================== */
+let source = null;
+const srcCanvas = document.createElement("canvas");
+const srcCtx = srcCanvas.getContext("2d", { willReadFrequently: false });
+
+async function loadFile(file) {
+  stopVideo();
+  try {
+    const isGif = file.type === "image/gif" || /\.gif$/i.test(file.name);
+    if (isGif) await loadGif(file);
+    else if (file.type.startsWith("video/")) await loadVideo(file);
+    else if (file.type.startsWith("image/")) await loadImage(file);
+    else throw new Error("Định dạng không hỗ trợ");
+    activePreset = null; renderPresetActive();
+    fit("cover");
+    renderOnce();
+  } catch (err) {
+    log("Không đọc được file: " + err.message, "e");
+    $("srcInfo").textContent = "Lỗi: " + err.message;
+  }
+}
+
+async function loadGif(file) {
+  if (!("ImageDecoder" in window)) throw new Error("Trình duyệt chưa hỗ trợ giải mã GIF (cần Chrome/Edge bản mới).");
+  $("srcInfo").textContent = "Đang giải mã GIF…";
+  const dec = new ImageDecoder({ data: await file.arrayBuffer(), type: "image/gif" });
+  await dec.tracks.ready; await dec.completed;
+  const count = Math.min(dec.tracks.selectedTrack.frameCount, 1500);
+  const frames = [];
+  let W = 0, H = 0;
+  for (let i = 0; i < count; i++) {
+    const { image } = await dec.decode({ frameIndex: i });
+    if (!W) {
+      const k = Math.min(1, 640 / Math.max(image.displayWidth, image.displayHeight));
+      W = Math.max(1, Math.round(image.displayWidth * k)); H = Math.max(1, Math.round(image.displayHeight * k));
+    }
+    let dur = (image.duration || 0) / 1000;
+    if (dur <= 10) dur = 100;                    // GIF delay 0 → 100 ms như trình duyệt
+    const bmp = await createImageBitmap(image, { resizeWidth: W, resizeHeight: H, resizeQuality: "medium" });
+    image.close();
+    frames.push({ bmp, dur });
+  }
+  dec.close();
+  if (!frames.length) throw new Error("GIF không có khung hình");
+  setFrameSource(frames, W, H, `${file.name} · ${W}×${H} px · ${frames.length} khung hình`);
+}
+
+async function loadImage(file) {
+  const bmp = await createImageBitmap(file);
+  setFrameSource([{ bmp, dur: 1000 }], bmp.width, bmp.height, `${file.name} · ${bmp.width}×${bmp.height} px · ảnh tĩnh`);
+}
+
+function setFrameSource(frames, w, h, info) {
+  if (source && source.frames) source.frames.forEach(f => f.bmp.close && f.bmp.close());
+  const ends = []; let acc = 0;
+  for (const f of frames) { acc += f.dur; ends.push(acc); }
+  source = {
+    kind: "frames", w, h, frames, total: acc,
+    draw(ctx, t) {
+      const tt = ((t % this.total) + this.total) % this.total;
+      let i = 0; while (i < ends.length - 1 && ends[i] <= tt) i++;
+      ctx.clearRect(0, 0, w, h);
+      ctx.drawImage(this.frames[i].bmp, 0, 0, w, h);
+    }
+  };
+  $("srcInfo").textContent = info;
+  log("Đã tải: " + info, "o");
+}
+
+let videoEl = null;
+async function loadVideo(file) {
+  const v = document.createElement("video");
+  v.muted = true; v.loop = true; v.playsInline = true;
+  v.src = URL.createObjectURL(file);
+  await new Promise((res, rej) => { v.onloadeddata = res; v.onerror = () => rej(new Error("Không mở được video")); });
+  await v.play().catch(() => {});
+  videoEl = v;
+  const k = Math.min(1, 640 / Math.max(v.videoWidth, v.videoHeight));
+  const w = Math.round(v.videoWidth * k), h = Math.round(v.videoHeight * k);
+  source = { kind: "video", w, h, draw(ctx) { ctx.drawImage(v, 0, 0, w, h); } };
+  $("srcInfo").textContent = `${file.name} · video ${v.videoWidth}×${v.videoHeight}`;
+  log("Đã tải video: " + file.name, "o");
+}
+function stopVideo() {
+  if (videoEl) { videoEl.pause(); URL.revokeObjectURL(videoEl.src); videoEl = null; }
+}
+
+/* ---------- mẫu có sẵn (vẽ theo toạ độ phím: 605 × 187) ---------- */
+const hash = n => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
+const lowres = document.createElement("canvas"); lowres.width = 61; lowres.height = 19;
+const lowCtx = lowres.getContext("2d");
+
+const PRESETS = [
+  { name: "Xoắn ốc trắng, tim đỏ", draw(ctx, w, h, t) {
+      const T = t % 8;
+      ctx.fillStyle = "#000"; ctx.fillRect(0, 0, w, h);
+      if (T < 4) {
+        const p = T / 4;
+        ctx.save(); ctx.translate(w / 2, h / 2); ctx.rotate(T * 2.2);
+        ctx.strokeStyle = "#fff"; ctx.lineCap = "round"; ctx.lineWidth = 16 + 40 * p * p;
+        ctx.beginPath();
+        const maxA = 0.3 + p * 7 * Math.PI;
+        for (let a = 0; a <= maxA; a += 0.08) { const r = a * 13; ctx.lineTo(r * Math.cos(a), r * Math.sin(a)); }
+        ctx.stroke(); ctx.restore();
+        if (p > 0.85) { ctx.fillStyle = `rgba(255,255,255,${(p - 0.85) / 0.15})`; ctx.fillRect(0, 0, w, h); }
+      } else {
+        const q = T - 4;
+        ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, w, h);
+        const beat = 1 + 0.12 * Math.pow(Math.max(0, Math.sin(q * Math.PI * 2.4)), 6);
+        const k = 5.3 * beat, cx = w / 2, cy = h / 2 + 4;
+        ctx.fillStyle = "#ff1238"; ctx.beginPath();
+        for (let a = 0; a <= Math.PI * 2 + 0.01; a += 0.05) {
+          const x = 16 * Math.pow(Math.sin(a), 3);
+          const y = 13 * Math.cos(a) - 5 * Math.cos(2 * a) - 2 * Math.cos(3 * a) - Math.cos(4 * a);
+          ctx.lineTo(cx + x * k, cy - y * k);
+        }
+        ctx.fill();
+        if (q > 3.5) { ctx.fillStyle = `rgba(0,0,0,${(q - 3.5) / 0.5})`; ctx.fillRect(0, 0, w, h); }
+      }
+  }},
+  { name: "Cầu vồng chạy", draw(ctx, w, h, t) {
+      const g = ctx.createLinearGradient(0, 0, w, h * 0.3);
+      for (let i = 0; i <= 6; i++) g.addColorStop(i / 6, `hsl(${(((i * 60 - t * 140) % 360) + 360) % 360},100%,50%)`);
+      ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+  }},
+  { name: "Mưa ma trận", draw(ctx, w, h, t) {
+      ctx.fillStyle = "#000"; ctx.fillRect(0, 0, w, h);
+      for (let c = 0; c < 17; c++) for (let k = 0; k < 2; k++) {
+        const v = 70 + hash(c * 3 + k) * 110, len = 70 + hash(c + 9 * k) * 60;
+        const y = ((t * v + hash(c * 7 + k * 13) * 600) % (h + len + 60)) - 30;
+        const g = ctx.createLinearGradient(0, y - len, 0, y);
+        g.addColorStop(0, "rgba(0,255,70,0)"); g.addColorStop(0.85, "rgba(0,255,70,.9)"); g.addColorStop(1, "#d8ffd8");
+        ctx.fillStyle = g; ctx.fillRect(c * 37 + 2, y - len, 33, len);
+      }
+  }},
+  { name: "Sóng nước", draw(ctx, w, h, t) {
+      ctx.fillStyle = "#000"; ctx.fillRect(0, 0, w, h);
+      for (let k = 0; k < 6; k++) {
+        const r = (t * 130 + k * 65) % 390, a = 1 - r / 390;
+        ctx.strokeStyle = `hsla(${185 + k * 12},100%,55%,${a})`; ctx.lineWidth = 30;
+        ctx.beginPath(); ctx.arc(w / 2, h / 2, r, 0, Math.PI * 2); ctx.stroke();
+      }
+  }},
+  { name: "Thở hồng tím", draw(ctx, w, h, t) {
+      const b = (Math.sin(t * 2.2) + 1) / 2;
+      ctx.fillStyle = "#000"; ctx.fillRect(0, 0, w, h);
+      const g = ctx.createLinearGradient(0, 0, w, 0);
+      g.addColorStop(0, "#ff2fa0"); g.addColorStop(1, "#7a2bff");
+      ctx.globalAlpha = 0.08 + 0.92 * b; ctx.fillStyle = g; ctx.fillRect(0, 0, w, h); ctx.globalAlpha = 1;
+  }},
+  { name: "Lửa cháy", draw(ctx, w, h, t) {
+      const W = lowres.width, H = lowres.height, img = lowCtx.createImageData(W, H);
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        const n = (Math.sin(x * 0.55 + t * 3.1) + Math.sin(x * 1.37 - t * 4.3 + y * 0.6) + Math.sin(y * 0.9 + t * 6.0 + x * 0.21)) / 6 + 0.5;
+        let heat = Math.pow(y / (H - 1), 1.3) * (0.55 + 0.75 * n);
+        heat = Math.max(0, Math.min(1, heat));
+        const i = (y * W + x) * 4;
+        img.data[i] = Math.min(255, heat * 3 * 255);
+        img.data[i + 1] = Math.max(0, Math.min(255, (heat - 0.35) * 2.2 * 255));
+        img.data[i + 2] = Math.max(0, Math.min(255, (heat - 0.8) * 4 * 255));
+        img.data[i + 3] = 255;
+      }
+      lowCtx.putImageData(img, 0, 0);
+      ctx.imageSmoothingEnabled = true; ctx.drawImage(lowres, 0, 0, w, h);
+  }},
+];
+
+let activePreset = null;
+function usePreset(i) {
+  stopVideo();
+  if (source && source.frames) source.frames.forEach(f => f.bmp.close && f.bmp.close());
+  activePreset = i;
+  const P = PRESETS[i];
+  source = { kind: "preset", w: KB.w, h: KB.h, draw(ctx, t) { P.draw(ctx, KB.w, KB.h, t / 1000); } };
+  fit("stretch");
+  $("srcInfo").textContent = "Mẫu: " + P.name;
+  renderPresetActive(); renderOnce();
+}
+function renderPresetActive() {
+  document.querySelectorAll(".preset").forEach((b, i) => b.classList.toggle("active", i === activePreset));
+}
+function buildPresetCards() {
+  const box = $("presets");
+  PRESETS.forEach((P, i) => {
+    const b = document.createElement("button"); b.className = "preset";
+    const c = document.createElement("canvas"); c.width = 242; c.height = 75;
+    const x = c.getContext("2d"); x.scale(c.width / KB.w, c.height / KB.h);
+    P.draw(x, KB.w, KB.h, i === 0 ? 5.2 : 1.3);
+    const s = document.createElement("span"); s.textContent = P.name;
+    b.append(c, s); b.onclick = () => usePreset(i);
+    box.appendChild(b);
+  });
+}
+
+/* ======================================================================
+   Căn chỉnh: toạ độ phím u (0..605, 0..187) → pixel nguồn: src = u*s + o
+   ====================================================================== */
+const view = { sx: 1, sy: 1, ox: 0, oy: 0, flip: false };
+function fit(mode) {
+  if (!source) return;
+  const { w, h } = source;
+  if (mode === "stretch") { view.sx = w / KB.w; view.sy = h / KB.h; view.ox = 0; view.oy = 0; }
+  else {
+    const s = mode === "cover" ? Math.min(w / KB.w, h / KB.h) : Math.max(w / KB.w, h / KB.h);
+    view.sx = view.sy = s; view.ox = (w - KB.w * s) / 2; view.oy = (h - KB.h * s) / 2;
+  }
+  renderOnce();
+}
+
+/* ---------- lấy mẫu màu cho từng phím ---------- */
+const Q = 0.5;
+const sampleCanvas = document.createElement("canvas");
+sampleCanvas.width = Math.round(KB.w * Q); sampleCanvas.height = Math.round(KB.h * Q);
+const sampleCtx = sampleCanvas.getContext("2d", { willReadFrequently: true });
+const KEY_RECTS = KEYS.map(([idx, name, x, y, w, h]) => {
+  const inset = 0.2 * Math.min(w, h);
+  return { idx, x0: Math.floor((x - KB.x0 + inset) * Q), y0: Math.floor((y - KB.y0 + inset) * Q),
+           x1: Math.ceil((x - KB.x0 + w - inset) * Q), y1: Math.ceil((y - KB.y0 + h - inset) * Q) };
+});
+const keyColors = KEYS.map(() => [0, 0, 0]);
+
+const opts = { bright: 1, sat: 1.2, speed: 1, fps: 30, gamma: true };
+const GAMMA_LUT = new Uint8Array(256);
+for (let i = 0; i < 256; i++) GAMMA_LUT[i] = Math.round(255 * Math.pow(i / 255, 1.8));
+
+function renderSource(t) {
+  if (!source) return false;
+  if (srcCanvas.width !== source.w || srcCanvas.height !== source.h) { srcCanvas.width = source.w; srcCanvas.height = source.h; }
+  source.draw(srcCtx, t);
+  return true;
+}
+
+function sampleKeys() {
+  const W = sampleCanvas.width, H = sampleCanvas.height, sc = sampleCtx;
+  sc.setTransform(1, 0, 0, 1, 0, 0);
+  sc.fillStyle = "#000"; sc.fillRect(0, 0, W, H);
+  if (!source) { keyColors.forEach(c => c.fill(0)); return; }
+  // nguồn → không gian phím: u = (src - o)/s, rồi ×Q
+  let a = Q / view.sx, d = Q / view.sy, e = -view.ox * a, f = -view.oy * d;
+  if (view.flip) { a = -a; e = W - e; }
+  sc.setTransform(a, 0, 0, d, e, f);
+  sc.imageSmoothingEnabled = true;
+  sc.drawImage(srcCanvas, 0, 0);
+  sc.setTransform(1, 0, 0, 1, 0, 0);
+  const px = sc.getImageData(0, 0, W, H).data;
+  KEY_RECTS.forEach((r, k) => {
+    let R = 0, G = 0, B = 0, n = 0;
+    for (let y = Math.max(0, r.y0); y < Math.min(H, r.y1); y++)
+      for (let x = Math.max(0, r.x0); x < Math.min(W, r.x1); x++) {
+        const i = (y * W + x) * 4; R += px[i]; G += px[i + 1]; B += px[i + 2]; n++;
+      }
+    if (!n) { keyColors[k].fill(0); return; }
+    R /= n; G /= n; B /= n;
+    // độ đậm màu
+    const L = 0.299 * R + 0.587 * G + 0.114 * B;
+    R = L + (R - L) * opts.sat; G = L + (G - L) * opts.sat; B = L + (B - L) * opts.sat;
+    const c = keyColors[k];
+    c[0] = Math.max(0, Math.min(255, Math.round(R * opts.bright)));
+    c[1] = Math.max(0, Math.min(255, Math.round(G * opts.bright)));
+    c[2] = Math.max(0, Math.min(255, Math.round(B * opts.bright)));
+  });
+}
+
+function buildTable() {
+  const t = new Uint8Array(TABLE_BYTES);
+  KEYS.forEach(([idx], k) => {
+    const c = keyColors[k], o = idx * 3;
+    if (o + 2 >= TABLE_BYTES) return;
+    if (opts.gamma) { t[o] = GAMMA_LUT[c[0]]; t[o + 1] = GAMMA_LUT[c[1]]; t[o + 2] = GAMMA_LUT[c[2]]; }
+    else { t[o] = c[0]; t[o + 1] = c[1]; t[o + 2] = c[2]; }
+  });
+  return t;
+}
+
+/* ======================================================================
+   Vẽ khung xem trước
+   ====================================================================== */
+const cv = $("preview"), ctx = cv.getContext("2d");
+const M = 28;                                 // lề quanh bàn phím (đơn vị phím)
+const VW = KB.w + M * 2, VH = KB.h + M * 2;
+function sizeCanvas() {
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const cssW = cv.clientWidth || 800;
+  cv.width = Math.round(cssW * dpr); cv.height = Math.round(cssW * VH / VW * dpr);
+  cv.style.height = (cssW * VH / VW) + "px";
+}
+function roundRect(c, x, y, w, h, r) { c.beginPath(); c.roundRect ? c.roundRect(x, y, w, h, r) : c.rect(x, y, w, h); }
+
+function drawPreview() {
+  const P = cv.width / VW;
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.fillStyle = "#07080c"; ctx.fillRect(0, 0, cv.width, cv.height);
+  // nguồn mờ phía sau để căn
+  if (source) {
+    ctx.save();
+    let a = P / view.sx, d = P / view.sy, e = (M - view.ox / view.sx) * P, f = (M - view.oy / view.sy) * P;
+    if (view.flip) { a = -a; e = (M + KB.w + view.ox / view.sx) * P; }
+    ctx.setTransform(a, 0, 0, d, e, f);
+    ctx.globalAlpha = 0.28; ctx.drawImage(srcCanvas, 0, 0);
+    ctx.globalAlpha = 1;
+    ctx.setLineDash([6 / Math.abs(a), 5 / Math.abs(a)]);
+    ctx.lineWidth = 1.5 / Math.abs(a); ctx.strokeStyle = "rgba(122,150,255,.8)";
+    ctx.strokeRect(0, 0, source.w, source.h);
+    ctx.restore();
+  }
+  ctx.setTransform(P, 0, 0, P, M * P, M * P);
+  // khung bàn phím
+  ctx.fillStyle = "rgba(24,27,36,.65)"; roundRect(ctx, -7, -7, KB.w + 14, KB.h + 14, 10); ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,.06)"; ctx.lineWidth = 1; ctx.stroke();
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  KEYS.forEach(([idx, name, x, y, w, h], k) => {
+    const [r, g, b] = keyColors[k], lit = r + g + b > 24;
+    const X = x - KB.x0, Y = y - KB.y0;
+    if (lit) { ctx.shadowColor = `rgb(${r},${g},${b})`; ctx.shadowBlur = 10 * P; }
+    ctx.fillStyle = lit ? `rgb(${r},${g},${b})` : "#191c24";
+    roundRect(ctx, X + 1, Y + 1, w - 2, h - 2, 5); ctx.fill();
+    ctx.shadowBlur = 0;
+    ctx.strokeStyle = lit ? "rgba(255,255,255,.25)" : "#2a2f3b"; ctx.stroke();
+    const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+    ctx.fillStyle = lit && lum > 140 ? "rgba(0,0,0,.7)" : "rgba(255,255,255,.75)";
+    ctx.font = `600 ${name.length > 3 ? 9 : 11}px system-ui,sans-serif`;
+    ctx.fillText(name, X + w / 2, Y + h / 2 + 0.5);
+  });
+}
+
+function renderOnce() {
+  renderSource(animT);
+  sampleKeys();
+  drawPreview();
+}
+
+/* ---------- kéo / thu phóng ---------- */
+function toU(ev) {
+  const r = cv.getBoundingClientRect(), P = cv.width / VW;
+  const px = (ev.clientX - r.left) * cv.width / r.width, py = (ev.clientY - r.top) * cv.height / r.height;
+  let u = px / P - M; const v = py / P - M;
+  if (view.flip) u = KB.w - u;
+  return [u, v];
+}
+let dragging = null;
+cv.addEventListener("pointerdown", e => { if (!source) return; dragging = toU(e); cv.setPointerCapture(e.pointerId); cv.classList.add("drag"); });
+cv.addEventListener("pointermove", e => {
+  if (!dragging) return;
+  const [u, v] = toU(e);
+  view.ox -= (u - dragging[0]) * view.sx; view.oy -= (v - dragging[1]) * view.sy;
+  dragging = [u, v];
+  if (!running) renderOnce();
+});
+const endDrag = () => { dragging = null; cv.classList.remove("drag"); };
+cv.addEventListener("pointerup", endDrag); cv.addEventListener("pointercancel", endDrag);
+cv.addEventListener("wheel", e => {
+  if (!source) return;
+  e.preventDefault();
+  const [u, v] = toU(e), k = Math.exp(e.deltaY * 0.0015);
+  const sx0 = u * view.sx + view.ox, sy0 = v * view.sy + view.oy;
+  view.sx *= k; view.sy *= k;
+  view.ox = sx0 - u * view.sx; view.oy = sy0 - v * view.sy;
+  if (!running) renderOnce();
+}, { passive: false });
+
+/* ======================================================================
+   Vòng lặp — dùng Worker làm đồng hồ để tab ẩn vẫn chạy đủ nhịp
+   ====================================================================== */
+let previewing = false, playing = false, running = false;
+let animT = 0, lastTick = 0, pktCount = 0, statT = performance.now(), statFrames = 0;
+const ticker = new Worker(URL.createObjectURL(new Blob([
+  "let id=null;onmessage=e=>{clearInterval(id);id=null;if(e.data>0)id=setInterval(()=>postMessage(0),e.data);}"
+], { type: "text/javascript" })));
+ticker.onmessage = tick;
+
+function startLoop() {
+  if (!running) { running = true; lastTick = performance.now(); }
+  ticker.postMessage(Math.round(1000 / opts.fps));
+}
+function stopLoop() { running = false; ticker.postMessage(0); }
+
+async function tick() {
+  const now = performance.now();
+  const dt = Math.min(250, now - lastTick); lastTick = now;
+  animT += dt * opts.speed;
+  if (!renderSource(animT)) return;
+  sampleKeys();
+  if (!document.hidden) drawPreview();
+  if (playing && dev && !busy) { const tbl = buildTable(); sendTable(tbl); statFrames++; }
+  if (now - statT > 1000) {
+    const fps = statFrames * 1000 / (now - statT);
+    $("stat").textContent = playing ? `Đang phát · ${fps.toFixed(0)} khung/s · ${(pktCount / Math.max(1, sentFrames)).toFixed(1)} gói/khung`
+                                    : (previewing ? "Đang xem trước" : "");
+    statT = now; statFrames = 0;
+  }
+}
+
+async function startPreview() {
+  if (!source) usePreset(0);
+  previewing = true; startLoop(); updateButtons();
+}
+async function startPlay() {
+  if (!dev) { const ok = await connect(false); if (!ok) return; }
+  if (!source) usePreset(0);
+  try {
+    await enterCustomMode();
+    lastTable = null; pktCount = 0; sentFrames = 0;
+    playing = true; previewing = true;
+    if (videoEl) videoEl.play().catch(() => {});
+    startLoop(); updateButtons();
+    log("Bắt đầu phát lên bàn phím. Giữ tab này mở nhé.", "o");
+  } catch (err) { log("Không bật được chế độ Custom: " + err.message, "e"); }
+}
+async function stopAll(doRestore = true) {
+  const wasPlaying = playing;
+  playing = false; previewing = false; stopLoop(); updateButtons();
+  $("stat").textContent = "";
+  if (wasPlaying && doRestore && $("restore").checked) { await chain; await restoreLight(); }
+  else if (wasPlaying) log("Đã dừng phát.");
+}
+function updateButtons() {
+  $("btnPreview").disabled = previewing;
+  $("btnPlay").disabled = playing;
+  $("btnStop").disabled = !previewing && !playing;
+}
+
+/* ======================================================================
+   Gắn sự kiện giao diện
+   ====================================================================== */
+$("btnConnect").onclick = () => connect(false);
+$("btnDisconnect").onclick = disconnect;
+$("btnPreview").onclick = startPreview;
+$("btnPlay").onclick = startPlay;
+$("btnStop").onclick = () => stopAll(true);
+$("btnFlip").onclick = () => { view.flip = !view.flip; if (!running) renderOnce(); };
+document.querySelectorAll("[data-fit]").forEach(b => b.onclick = () => fit(b.dataset.fit));
+
+$("tabFile").onclick = () => { $("tabFile").classList.add("active"); $("tabPreset").classList.remove("active"); $("paneFile").classList.remove("hidden"); $("panePreset").classList.add("hidden"); };
+$("tabPreset").onclick = () => { $("tabPreset").classList.add("active"); $("tabFile").classList.remove("active"); $("panePreset").classList.remove("hidden"); $("paneFile").classList.add("hidden"); };
+
+const drop = $("drop");
+drop.onclick = () => $("file").click();
+$("file").onchange = e => { const f = e.target.files[0]; if (f) loadFile(f); e.target.value = ""; };
+["dragenter", "dragover"].forEach(t => document.addEventListener(t, e => { e.preventDefault(); drop.classList.add("hover"); }));
+["dragleave", "drop"].forEach(t => document.addEventListener(t, e => { e.preventDefault(); if (t === "drop" || e.target === document.documentElement) drop.classList.remove("hover"); }));
+document.addEventListener("drop", e => { const f = e.dataTransfer.files[0]; if (f) { $("tabFile").onclick(); loadFile(f); } });
+
+function bindRange(id, out, fmt, apply) {
+  const el = $(id), upd = () => { $(out).textContent = fmt(+el.value); apply(+el.value); if (!running) renderOnce(); };
+  el.oninput = upd; upd();
+}
+bindRange("bright", "vBright", v => v + "%", v => opts.bright = v / 100);
+bindRange("sat", "vSat", v => v + "%", v => opts.sat = v / 100);
+bindRange("speed", "vSpeed", v => (v / 100).toFixed(1) + "×", v => { opts.speed = v / 100; if (videoEl) videoEl.playbackRate = Math.max(0.1, opts.speed); });
+bindRange("fps", "vFps", v => String(v), v => { opts.fps = v; if (running) ticker.postMessage(Math.round(1000 / v)); });
+$("gamma").onchange = e => { opts.gamma = e.target.checked; lastTable = null; };
+
+window.addEventListener("resize", () => { sizeCanvas(); drawPreview(); });
+
+/* khởi động */
+buildPresetCards();
+sizeCanvas();
+updateButtons();
+drawPreview();
+log("Sẵn sàng. Kết nối bàn phím, chọn hiệu ứng rồi bấm “Phát lên bàn phím”.");
+connect(true);   // tự kết nối lại nếu trước đó đã cấp quyền
+</script>
+</body>
+</html>
