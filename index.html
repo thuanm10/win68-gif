@@ -108,7 +108,16 @@
         <select id="methodSel" style="width:100%;margin-top:4px;padding:8px;border-radius:10px;background:var(--panel2);color:var(--text);border:1px solid var(--line);font:inherit">
           <option value="realtime">Thời gian thực — mượt (khuyên dùng)</option>
           <option value="write">Ghi vào phím — dự phòng, chậm, có thể chớp</option>
-        </select></label>
+        </select>
+        <span style="display:block;font-size:13px;color:var(--muted);margin-top:8px">Nền khi phát (nếu đèn chớp, đổi thử)</span>
+        <select id="baseSel" style="width:100%;margin-top:4px;padding:8px;border-radius:10px;background:var(--panel2);color:var(--text);border:1px solid var(--line);font:inherit">
+          <option value="custom">A · Custom toàn đen (mặc định)</option>
+          <option value="static">B · Tĩnh màu đen</option>
+          <option value="off">C · Tắt đèn chính</option>
+          <option value="keep">D · Giữ nguyên hiệu ứng đang có</option>
+        </select>
+        <label style="display:flex;gap:6px;align-items:center;margin-top:8px;font-size:13.5px;color:var(--muted)"><input id="pumpChk" type="checkbox" checked style="accent-color:var(--accent)"> Gửi liên tục (giữ khung hình, chống tắt)</label>
+      </label>
       <ol class="steps">
         <li>Tắt driver/phần mềm đèn khác (web Aula, SignalRGB, OpenRGB…).</li>
         <li>Bấm nút trên, chọn <b>HERO 68 HE</b> (hoặc <b>WIN 68 HE</b>) rồi bấm <b>Connect</b>.</li>
@@ -346,6 +355,8 @@ const Hero68Driver = {
   id: "hero68", name: "AULA HERO 68 HE", vid: 0x372E, pid: 0x103E, reportId: 9, keys: KEYS_HERO68,
   savedLight: null, savedColors: null, last: null, lastFull: 0,
   method: "realtime",                                // "realtime" (0x08) | "write" (0x06, dự phòng)
+  base: "custom",                                    // nền khi phát thời gian thực: custom | static | off | keep
+  pump: true,                                        // gửi lặp liên tục để giữ khung hình
   canTest: true,
   isConfig(d) { return d.collections.some(c => c.outputReports?.some(r => r.reportId === 9)); },
   async init() {
@@ -378,15 +389,23 @@ const Hero68Driver = {
     if (this.method === "write") {
       await this.setLight([19, 0, 0, 0, 0, 20, 0]);  // Custom, sáng tối đa
     } else {
-      // Nền tĩnh màu đen, sáng tối đa → hiệu ứng có sẵn không vẽ đè lên màu thời gian thực
-      await this.setLight([1, 0, 0, 0, 0, 20, 0]);
+      if (this.base === "custom") {                  // Custom với toàn phím đen (ghi 1 lần)
+        await this.writeKeys(this.keys.map(([pos]) => [pos, [0, 0, 0]]));
+        await this.setLight([19, 0, 0, 0, 0, 20, 0]);
+      } else if (this.base === "static") await this.setLight([1, 0, 0, 0, 0, 20, 0]);
+      else if (this.base === "off") await this.setLight([0, 0, 0, 0, 0, 20, 0]);
       await this.solid([0, 0, 0]);
     }
+    log(`Hero: cách gửi = ${this.method}, nền = ${this.base}, gửi liên tục = ${this.pump ? "bật" : "tắt"}`);
   },
-  async test() {                                     // đỏ 2 giây bằng lệnh thời gian thực
-    await this.setLight([1, 0, 0, 0, 0, 20, 0]);
-    for (let i = 0; i < 20; i++) { await this.solid([255, 0, 0]); await sleep(100); }
-    await this.restore();
+  async test() {                                     // đỏ 2 giây bằng lệnh thời gian thực, theo nền đang chọn
+    const m = this.method; this.method = "realtime";
+    try {
+      await this.enter();
+      const red = this.keys.map(() => [255, 0, 0]), t0 = performance.now();
+      while (performance.now() - t0 < 2000) { await this.frameRealtime(red); await sleep(this.pump ? 10 : 100); }
+      await this.restore();
+    } finally { this.method = m; }
   },
   async solid(rgb) { await sendRaw(9, heroFrame(0x08, { sub: 2, data: rgb })); },
   async writeKeys(list) {                            // ghi bền (0x06) — chỉ dùng khi khôi phục
@@ -893,7 +912,16 @@ cv.addEventListener("wheel", e => {
    ====================================================================== */
 let previewing = false, playing = false, running = false;
 let animT = 0, lastTick = 0, statT = performance.now(), statFrames = 0;
-let lastSendAt = 0;
+let lastSendAt = 0, latestColors = null, pumpRunning = false;
+async function pumpLoop() {                 // gửi khung mới nhất liên tục (~mỗi 12 ms) để bàn phím không tự xoá
+  pumpRunning = true;
+  try {
+    while (playing && dev && driver && driver.pump && driver.method === "realtime") {
+      if (!busy && latestColors) await sendColors(latestColors);
+      await sleep(12);
+    }
+  } finally { pumpRunning = false; }
+}
 const ticker = new Worker(URL.createObjectURL(new Blob([
   "let id=null;onmessage=e=>{clearInterval(id);id=null;if(e.data>0)id=setInterval(()=>postMessage(0),e.data);}"
 ], { type: "text/javascript" })));
@@ -912,12 +940,16 @@ async function tick() {
   if (!renderSource(animT)) return;
   sampleKeys();
   if (!document.hidden) drawPreview();
-  if (playing && dev && !busy && !(driver && driver.method === "write" && now - lastSendAt < 125)) {
-    lastSendAt = now; sendColors(outColors()); statFrames++;
+  latestColors = outColors();
+  const pumping = driver && driver.pump && driver.method === "realtime";
+  if (playing && dev && pumping) { statFrames++; if (!pumpRunning) pumpLoop(); }
+  else if (playing && dev && !busy && !(driver && driver.method === "write" && now - lastSendAt < 125)) {
+    lastSendAt = now; sendColors(latestColors); statFrames++;
   }
   if (now - statT > 1000) {
     const fps = statFrames * 1000 / (now - statT);
-    $("stat").textContent = playing ? `Đang phát · ${fps.toFixed(0)} khung/s · ${(pktCount / Math.max(1, sentFrames)).toFixed(1)} gói/khung`
+    const sps = (sentFrames - (window.__prevSent || 0)) * 1000 / (now - statT); window.__prevSent = sentFrames;
+    $("stat").textContent = playing ? `Đang phát · ${fps.toFixed(0)} khung/s · gửi ${sps.toFixed(0)} lần/s · ${(pktCount / Math.max(1, sentFrames)).toFixed(1)} gói/lần`
                                     : (previewing ? "Đang xem trước" : "");
     statT = now; statFrames = 0;
   }
@@ -966,10 +998,19 @@ $("btnTest").onclick = async () => {
   catch (e) { log("Thử đèn lỗi: " + e.message, "e"); }
   $("btnTest").disabled = false;
 };
+$("baseSel").onchange = async e => {
+  Hero68Driver.base = e.target.value;
+  if (playing && driver === Hero68Driver) { await pauseSend(async () => driver.enter()); }
+};
+$("pumpChk").onchange = e => { Hero68Driver.pump = e.target.checked; log("Gửi liên tục: " + (e.target.checked ? "bật" : "tắt")); };
+async function pauseSend(fn) {
+  while (busy) await sleep(5);
+  busy = true; try { await fn(); } finally { busy = false; }
+}
 $("methodSel").onchange = async e => {
   Hero68Driver.method = e.target.value;
   log(e.target.value === "write" ? "Đã chuyển sang cách ghi vào phím (giới hạn 8 khung/giây)." : "Đã chuyển sang cách thời gian thực.");
-  if (playing && driver === Hero68Driver) { busy = true; try { await driver.enter(); } finally { busy = false; } }
+  if (playing && driver === Hero68Driver) await pauseSend(async () => driver.enter());
 };
 $("btnPreview").onclick = startPreview;
 $("btnPlay").onclick = startPlay;
