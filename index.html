@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Win68 HE · Đèn GIF</title>
+<title>Aula HE · Đèn GIF</title>
 <style>
   :root{
     --bg:#0b0d12; --panel:#12151c; --panel2:#181c25; --line:#252a36;
@@ -75,7 +75,7 @@
 </head>
 <body>
 <header>
-  <div class="eyebrow">AULA WIN68 HE · Đèn từng phím</div>
+  <div class="eyebrow">AULA HERO 68 HE · WIN68 HE · Đèn từng phím</div>
   <h1>Chạy GIF trên đèn bàn phím</h1>
   <p>Tải GIF, ảnh hoặc video lên (hay chọn mẫu có sẵn), căn theo từng phím rồi phát thẳng lên bàn phím qua cáp USB.</p>
 </header>
@@ -91,16 +91,21 @@
         <div id="dot" class="dot"></div>
         <div>
           <div id="devName" class="devname">Chưa kết nối</div>
-          <div id="devMeta" class="devmeta">AULA WIN68 HE · VID 2E3C · PID C365</div>
+          <div id="devMeta" class="devmeta">Hỗ trợ: AULA Hero 68 HE · AULA Win68 HE</div>
         </div>
       </div>
+      <label class="ctrl" style="display:block;margin-bottom:12px"><span style="font-size:13px;color:var(--muted)">Bố cục xem trước (tự đổi khi kết nối)</span>
+        <select id="layoutSel" style="width:100%;margin-top:4px;padding:8px;border-radius:10px;background:var(--panel2);color:var(--text);border:1px solid var(--line);font:inherit">
+          <option value="hero68">AULA Hero 68 HE</option>
+          <option value="win68">AULA Win68 HE</option>
+        </select></label>
       <div class="row">
         <button id="btnConnect" class="primary">Kết nối bàn phím USB</button>
         <button id="btnDisconnect" class="hidden">Ngắt</button>
       </div>
       <ol class="steps">
         <li>Tắt driver/phần mềm đèn khác (web Aula, SignalRGB, OpenRGB…).</li>
-        <li>Bấm nút trên, chọn <b>WIN 68 HE</b> rồi bấm <b>Connect</b>.</li>
+        <li>Bấm nút trên, chọn <b>HERO 68 HE</b> (hoặc <b>WIN 68 HE</b>) rồi bấm <b>Connect</b>.</li>
       </ol>
     </section>
 
@@ -163,8 +168,8 @@
       <h2>Lưu ý</h2>
       <p class="note">• <b>Giữ tab này luôn mở</b> trong lúc phát. Trang tự gửi từng khung hình xuống bàn phím, đóng tab là hiệu ứng đứng lại ở khung cuối.<br>
       • Thu nhỏ hoặc chuyển sang tab khác vẫn chạy được.<br>
-      • Chỉ dùng cho <b>WIN68 HE bản thường</b> (driver gốc là hed.aulacn.com). Bản <b>Pro / Max</b> dùng giao thức khác nên trang này không điều khiển được.<br>
-      • Dữ liệu màu được ghi vào ô <b>Custom 1</b> của bàn phím (cũng là cách các trang chạy GIF khác đang làm).</p>
+      • Hỗ trợ <b>AULA Hero 68 HE</b> (VID 372E) và <b>AULA Win68 HE bản thường</b> (VID 2E3C). Win68 HE <b>Pro / Max</b> dùng giao thức khác nên chưa điều khiển được.<br>
+      • Trong lúc phát, bàn phím ở chế độ đèn <b>Custom</b> và màu từng phím được ghi liên tục (cũng là cách các trang chạy GIF khác đang làm).</p>
       <div id="log" class="log" style="margin-top:10px"></div>
     </section>
   </div>
@@ -173,28 +178,33 @@
 <script>
 "use strict";
 /* ======================================================================
-   AULA WIN68 HE — giao thức (họ WIN60/68 HE, VID 0x2E3C PID 0xC365)
-   Lấy từ driver web chính hãng hed.aulacn.com (agreement.min.js):
-   - Output report ID 1, 63 byte.
-   - cmd 7  : đặt chế độ đèn   [7,0,0,0,14, mode, brightness, speed, fgRGB, bgRGB, dir, fullColor, power]
-              mode 10 = Custom (màu từng phím)
-   - cmd 9  : bảng màu từng phím, 396 byte (132 ô × RGB), offset = keyIndex*3,
-              gửi thành 8 gói: [9, slot, pageHi, pageLo, len, ...54 byte]
-   - cmd 10 : đọc danh sách hiệu ứng + độ sáng/tốc độ tối đa
-   - cmd 7,1 / 9,0x80 : đọc lại trạng thái đèn / bảng màu Custom 1 (để khôi phục)
+   HỖ TRỢ 2 BÀN PHÍM
+   ----------------------------------------------------------------------
+   1) AULA WIN68 HE  (VID 0x2E3C, PID 0xC365) — giao thức driver hed.aulacn.com
+      Report 1, 63 byte. cmd 7 = chế độ đèn (mode 10 = Custom),
+      cmd 9 = bảng màu 396 byte (keyIndex*3), 8 gói × 54 byte.
+   2) AULA HERO 68 HE (VID 0x372E, PID 0x103E) — giao thức "kb_by_v3_wired"
+      Report 9, 63 byte, byte cuối = checksum 255 − ((9 + Σ byte 0..61) mod 256).
+      [cmd, sub, type, total, index, len, data…]
+      0x04/0x01 = đèn chính [mode, mix, r, g, b, độ sáng 0–20, tốc độ] (mode 19 = Custom)
+      0x06      = màu từng phím [pos u16, r, g, b] × tối đa 11 phím / gói, gói có đánh số
+      0x84/0x01, 0x86 = đọc lại đèn chính / màu từng phím (để khôi phục)
+      Nguồn: github.com/b9rnardo/aula-hero68-webdriver (đã kiểm chứng trên phím thật)
    ====================================================================== */
-const VID = 0x2E3C, PID = 0xC365, USAGE_PAGE = 0xFF1B, USAGE = 0x91;
-const TABLE_BYTES = 396, CHUNK = 54, PAGES = Math.ceil(TABLE_BYTES / CHUNK);
-const MODE_CUSTOM = 10, SLOT = 0;
 
-/* Bố cục 68 phím WIN68 HE (index thiết bị, nhãn, x, y, rộng, cao) — từ file
-   cấu hình chính hãng SI2828HEARGB / SI2828KZHEARGB. */
-const KEYS = [[22,"Esc",10,15,35,35],[23,"1",48,15,35,35],[24,"2",86,15,35,35],[25,"3",124,15,35,35],[26,"4",162,15,35,35],[27,"5",200,15,35,35],[28,"6",238,15,35,35],[29,"7",276,15,35,35],[30,"8",314,15,35,35],[31,"9",352,15,35,35],[32,"0",390,15,35,35],[33,"-",428,15,35,35],[34,"=",466,15,35,35],[36,"Back",504,15,73,35],[38,"Ins",580,15,35,35],
+const KEYS_WIN68 = [[22,"Esc",10,15,35,35],[23,"1",48,15,35,35],[24,"2",86,15,35,35],[25,"3",124,15,35,35],[26,"4",162,15,35,35],[27,"5",200,15,35,35],[28,"6",238,15,35,35],[29,"7",276,15,35,35],[30,"8",314,15,35,35],[31,"9",352,15,35,35],[32,"0",390,15,35,35],[33,"-",428,15,35,35],[34,"=",466,15,35,35],[36,"Back",504,15,73,35],[38,"Ins",580,15,35,35],
 [44,"Tab",10,53,54,35],[45,"Q",67,53,35,35],[46,"W",105,53,35,35],[47,"E",143,53,35,35],[48,"R",181,53,35,35],[49,"T",219,53,35,35],[50,"Y",257,53,35,35],[51,"U",295,53,35,35],[52,"I",333,53,35,35],[53,"O",371,53,35,35],[54,"P",409,53,35,35],[55,"[",447,53,35,35],[56,"]",485,53,35,35],[58,"\\",523,53,54,35],[60,"Del",580,53,35,35],
 [66,"Caps",10,91,63,35],[68,"A",76,91,35,35],[69,"S",114,91,35,35],[70,"D",152,91,35,35],[71,"F",190,91,35,35],[72,"G",228,91,35,35],[73,"H",266,91,35,35],[74,"J",304,91,35,35],[75,"K",342,91,35,35],[76,"L",380,91,35,35],[77,";",418,91,35,35],[78,"'",456,91,35,35],[80,"Enter",494,91,83,35],[82,"PgUp",580,91,35,35],
 [88,"Shift",10,129,83,35],[90,"Z",96,129,35,35],[91,"X",134,129,35,35],[92,"C",172,129,35,35],[93,"V",210,129,35,35],[94,"B",248,129,35,35],[95,"N",286,129,35,35],[96,"M",324,129,35,35],[97,",",362,129,35,35],[98,".",400,129,35,35],[99,"/",438,129,35,35],[101,"Shift",476,129,63,35],[103,"↑",542,129,35,35],[104,"PgDn",580,129,35,35],
 [110,"Ctrl",10,167,47,35],[111,"Win",60,167,47,35],[112,"Alt",110,167,47,35],[116,"Space",160,167,227,35],[119,"Alt",390,167,35,35],[121,"Fn",428,167,35,35],[122,"Ctrl",466,167,35,35],[124,"←",504,167,35,35],[125,"↓",542,167,35,35],[126,"→",580,167,35,35]];
-const KB = { x0: 10, y0: 15, w: 605, h: 187 };   // vùng bao quanh các phím
+
+const KEYS_HERO68 = [[1,"Esc",10,15,35,35],[15,"1",48,15,35,35],[16,"2",86,15,35,35],[17,"3",124,15,35,35],[18,"4",162,15,35,35],[19,"5",200,15,35,35],[20,"6",238,15,35,35],[21,"7",276,15,35,35],[22,"8",314,15,35,35],[23,"9",352,15,35,35],[24,"0",390,15,35,35],[25,"-",428,15,35,35],[26,"=",466,15,35,35],[27,"Back",504,15,73,35],[98,"Ins",580,15,35,35],
+[28,"Tab",10,53,54,35],[29,"Q",67,53,35,35],[30,"W",105,53,35,35],[31,"E",143,53,35,35],[32,"R",181,53,35,35],[33,"T",219,53,35,35],[34,"Y",257,53,35,35],[35,"U",295,53,35,35],[36,"I",333,53,35,35],[37,"O",371,53,35,35],[38,"P",409,53,35,35],[39,"[",447,53,35,35],[40,"]",485,53,35,35],[41,"\\",523,53,54,35],[99,"Del",580,53,35,35],
+[42,"Caps",10,91,63.5,35],[43,"A",76.5,91,35,35],[44,"S",114.5,91,35,35],[45,"D",152.5,91,35,35],[46,"F",190.5,91,35,35],[47,"G",228.5,91,35,35],[48,"H",266.5,91,35,35],[49,"J",304.5,91,35,35],[50,"K",342.5,91,35,35],[51,"L",380.5,91,35,35],[52,";",418.5,91,35,35],[53,"'",456.5,91,35,35],[54,"Enter",494.5,91,82.5,35],[102,"PgUp",580,91,35,35],
+[55,"Shift",10,129,82.5,35],[56,"Z",95.5,129,35,35],[57,"X",133.5,129,35,35],[58,"C",171.5,129,35,35],[59,"V",209.5,129,35,35],[60,"B",247.5,129,35,35],[61,"N",285.5,129,35,35],[62,"M",323.5,129,35,35],[63,",",361.5,129,35,35],[64,".",399.5,129,35,35],[65,"/",437.5,129,35,35],[66,"Shift",475.5,129,63.5,35],[74,"↑",542,129,35,35],[103,"PgDn",580,129,35,35],
+[67,"Ctrl",10,167,44.5,35],[68,"Win",57.5,167,44.5,35],[69,"Alt",105,167,44.5,35],[70,"Space",152.5,167,234.5,35],[71,"Alt",390,167,35,35],[72,"Fn",428,167,35,35],[73,"Ctrl",466,167,35,35],[76,"←",504,167,35,35],[75,"↓",542,167,35,35],[77,"→",580,167,35,35]];
+
+const KB = { x0: 10, y0: 15, w: 605, h: 187 };   // vùng bao quanh các phím (chung cho cả 2 bàn phím)
 
 /* ---------------- tiện ích giao diện ---------------- */
 const $ = id => document.getElementById(id);
@@ -204,23 +214,23 @@ function log(msg, cls = "") {
   line.textContent = new Date().toLocaleTimeString("vi-VN") + "  " + msg;
   el.appendChild(line); el.scrollTop = el.scrollHeight;
 }
+const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 /* ======================================================================
-   WebHID
+   WebHID: phần chung
    ====================================================================== */
-let dev = null, maxBright = 4, maxSpeed = 4;
-let savedLight = null, savedTable = null;
+let dev = null, driver = null;
 const listeners = new Set();
 let chain = Promise.resolve();
+let busy = false, sentFrames = 0, pktCount = 0;
 
-function pkt(bytes) { const b = new Uint8Array(63); b.set(bytes.slice(0, 63)); return b; }
-function send(bytes) {
-  const p = chain.then(() => dev.sendReport(1, bytes instanceof Uint8Array && bytes.length === 63 ? bytes : pkt(bytes)));
+function sendRaw(reportId, bytes) {
+  const p = chain.then(() => dev.sendReport(reportId, bytes));
   chain = p.catch(() => {});
   return p;
 }
 function onInput(e) {
-  if (e.reportId !== 1) return;
+  if (!driver || e.reportId !== driver.reportId) return;
   const d = new Uint8Array(e.data.buffer, e.data.byteOffset, e.data.byteLength);
   for (const l of [...listeners]) l(d);
 }
@@ -233,158 +243,237 @@ function waitFor(match, timeout) {
 }
 async function query(bytes, match, timeout = 600) {
   const p = waitFor(match, timeout);
-  await send(bytes);
+  await sendRaw(driver.reportId, bytes);
   return p;
 }
 
-function pickInterface(list) {
-  const score = d => {
-    let s = 0;
-    for (const c of d.collections) {
-      if (c.usagePage === USAGE_PAGE && c.usage === USAGE) s += 10;
-      else if (c.usagePage >= 0xFF00) s += 3;
-      if (c.outputReports && c.outputReports.some(r => r.reportId === 1)) s += 2;
+/* ======================================================================
+   Driver 1: AULA WIN68 HE
+   ====================================================================== */
+const WIN68_TABLE = 396, WIN68_CHUNK = 54, WIN68_PAGES = 8;
+function win68Pkt(bytes) { const b = new Uint8Array(63); b.set(bytes.slice(0, 63)); return b; }
+
+const Win68Driver = {
+  id: "win68", name: "AULA WIN68 HE", vid: 0x2E3C, pid: 0xC365, reportId: 1, keys: KEYS_WIN68,
+  maxBright: 4, maxSpeed: 4, savedLight: null, savedTable: null, last: null, lastFull: 0,
+  isConfig(d) {
+    return d.collections.some(c => (c.usagePage === 0xFF1B) || (c.usagePage >= 0xFF00 && c.outputReports?.some(r => r.reportId === 1)));
+  },
+  async init() {
+    const list = await query(win68Pkt([10]), d => d[0] === 10, 500);
+    if (list) { const len = list[4], p = list.slice(5, 5 + len); if (p.length >= 4) { this.maxBright = p[len - 1] || 4; this.maxSpeed = p[len - 2] || 4; } }
+    const light = await query(win68Pkt([7, 1]), d => d[0] === 7 && d[4] >= 12, 500);
+    this.savedLight = light ? Array.from(light.slice(5, 17)) : null;
+    this.savedTable = await this.readTable();
+    return !!this.savedLight;
+  },
+  readTable() {
+    return new Promise(res => {
+      const table = new Uint8Array(WIN68_TABLE), got = new Set();
+      const l = d => {
+        if (d[0] !== 9 || d[1] !== 0x80) return;
+        const page = (d[2] << 8) | d[3], len = Math.min(d[4], WIN68_CHUNK, d.length - 5), off = page * WIN68_CHUNK;
+        if (off < WIN68_TABLE) table.set(d.subarray(5, 5 + Math.min(len, WIN68_TABLE - off)), off);
+        got.add(page); if (got.size >= WIN68_PAGES) finish(table);
+      };
+      const finish = v => { listeners.delete(l); clearTimeout(t); res(v); };
+      const t = setTimeout(() => finish(null), 1500);
+      listeners.add(l);
+      sendRaw(1, win68Pkt([9, 0x80])).catch(() => finish(null));
+    });
+  },
+  lightPkt(b12) { return win68Pkt([7, 0, 0, 0, 14, ...b12]); },
+  async enter() {
+    this.last = null;
+    await sendRaw(1, this.lightPkt([10, this.maxBright, this.maxSpeed, 255, 255, 255, 0, 0, 0, 0, 0, 0]));
+  },
+  async writeTable(table, onlyChanged) {
+    let n = 0;
+    for (let p = 0; p < WIN68_PAGES; p++) {
+      const s = p * WIN68_CHUNK, len = Math.min(WIN68_CHUNK, WIN68_TABLE - s);
+      if (onlyChanged) {
+        let same = true;
+        for (let i = s; i < s + len; i++) if (table[i] !== this.last[i]) { same = false; break; }
+        if (same) continue;
+      }
+      const b = new Uint8Array(63);
+      b[0] = 9; b[1] = 0; b[2] = 0; b[3] = p; b[4] = len;
+      b.set(table.subarray(s, s + len), 5);
+      await sendRaw(1, b); n++;
     }
-    return s;
-  };
-  return [...list].filter(d => d.vendorId === VID && d.productId === PID).sort((a, b) => score(b) - score(a))[0] || null;
+    return n;
+  },
+  async frame(colors) {            // colors: [[r,g,b]…] theo thứ tự KEYS
+    const t = new Uint8Array(WIN68_TABLE);
+    this.keys.forEach(([idx], k) => { const o = idx * 3; if (o + 2 < WIN68_TABLE) t.set(colors[k], o); });
+    const now = performance.now(), full = !this.last || now - this.lastFull > 2000;
+    const n = await this.writeTable(t, !full);
+    if (full) this.lastFull = now;
+    this.last = t;
+    return n;
+  },
+  async restore() {
+    if (this.savedTable) await this.writeTable(this.savedTable, false);
+    if (this.savedLight) await sendRaw(1, this.lightPkt(this.savedLight));
+    return !!this.savedLight;
+  },
+};
+
+/* ======================================================================
+   Driver 2: AULA HERO 68 HE
+   ====================================================================== */
+function heroFrame(cmd, { sub = 0, type = 0, total = 1, index = 0, data = [], length } = {}) {
+  const f = new Uint8Array(63);
+  f[0] = cmd; f[1] = sub; f[2] = type; f[3] = total; f[4] = index; f[5] = length ?? data.length;
+  f.set(data, 6);
+  let s = 9; for (let i = 0; i < 62; i++) s += f[i];
+  f[62] = 255 - (s % 256);
+  return f;
+}
+const u16 = v => [(v >> 8) & 255, v & 255];
+
+const Hero68Driver = {
+  id: "hero68", name: "AULA HERO 68 HE", vid: 0x372E, pid: 0x103E, reportId: 9, keys: KEYS_HERO68,
+  savedLight: null, savedColors: null, last: null, lastFull: 0,
+  isConfig(d) { return d.collections.some(c => c.outputReports?.some(r => r.reportId === 9)); },
+  async init() {
+    const r = await query(heroFrame(0x84, { sub: 1 }), d => d[0] === 0x84 && d[1] === 1, 700);
+    this.savedLight = r ? Array.from(r.slice(6, 13)) : null;
+    this.savedColors = await this.readColors();
+    return !!this.savedLight;
+  },
+  async readColors() {
+    const pos = this.keys.map(k => k[0]), out = new Map();
+    for (let i = 0; i < pos.length; i += 11) {
+      const group = pos.slice(i, i + 11);
+      const r = await query(heroFrame(0x86, { data: group.flatMap(u16) }), d => d[0] === 0x86, 500);
+      if (!r) return null;
+      for (let k = 0; k < group.length; k++) {
+        const o = 6 + k * 5;
+        out.set((r[o] << 8) | r[o + 1], [r[o + 2], r[o + 3], r[o + 4]]);
+      }
+    }
+    return out;
+  },
+  async setLight(rec7) {
+    await query(heroFrame(0x04, { sub: 1, data: rec7 }), d => d[0] === 0x04 && d[1] === 1, 500);
+  },
+  async enter() {
+    this.last = null;
+    await this.setLight([19, 0, 0, 0, 0, 20, 0]);   // Custom, độ sáng tối đa (20)
+  },
+  async writeKeys(list) {                            // list: [[pos, [r,g,b]]…]
+    const groups = [];
+    for (let i = 0; i < list.length; i += 11) groups.push(list.slice(i, i + 11));
+    let ok = true;
+    for (let gi = 0; gi < groups.length; gi++) {
+      const data = groups[gi].flatMap(([pos, c]) => [...u16(pos), c[0], c[1], c[2]]);
+      const r = await query(heroFrame(0x06, { data, total: groups.length, index: gi }),
+                            d => d[0] === 0x06 && d[3] === groups.length && d[4] === gi, 250);
+      if (!r) ok = false;
+    }
+    return { n: groups.length, ok };
+  },
+  async frame(colors) {
+    const now = performance.now(), full = !this.last || now - this.lastFull > 2000;
+    const list = [];
+    this.keys.forEach(([pos], k) => {
+      const c = colors[k], p = this.last && this.last[k];
+      if (full || !p || p[0] !== c[0] || p[1] !== c[1] || p[2] !== c[2]) list.push([pos, c]);
+    });
+    if (!list.length) return 0;
+    const { n, ok } = await this.writeKeys(list);
+    if (full) this.lastFull = now;
+    this.last = ok ? colors.map(c => c.slice()) : null;   // mất gói → lần sau gửi lại đủ
+    return n;
+  },
+  async restore() {
+    if (this.savedColors) await this.writeKeys(this.keys.map(([pos]) => [pos, this.savedColors.get(pos) || [0, 0, 0]]));
+    if (this.savedLight) await this.setLight(this.savedLight);
+    return !!this.savedLight;
+  },
+};
+
+const DRIVERS = [Hero68Driver, Win68Driver];
+const HID_FILTERS = DRIVERS.map(d => ({ vendorId: d.vid, productId: d.pid }));
+
+function pickDevice(list) {
+  for (const drv of DRIVERS) {
+    const d = [...list].find(x => x.vendorId === drv.vid && x.productId === drv.pid && drv.isConfig(x));
+    if (d) return { d, drv };
+  }
+  return null;
 }
 
 async function connect(silent = false) {
   if (!("hid" in navigator)) { $("nohid").classList.remove("hidden"); return false; }
   try {
-    let list;
-    if (silent) list = await navigator.hid.getDevices();
-    else list = await navigator.hid.requestDevice({ filters: [
-      { vendorId: VID, productId: PID, usagePage: USAGE_PAGE, usage: USAGE },
-      { vendorId: VID, productId: PID } ] });
-    const d = pickInterface(list);
-    if (!d) { if (!silent) log("Không chọn thiết bị nào, hoặc thiết bị không phải WIN68 HE (2E3C:C365).", "w"); return false; }
+    const list = silent ? await navigator.hid.getDevices() : await navigator.hid.requestDevice({ filters: HID_FILTERS });
+    const found = pickDevice(list);
+    if (!found) {
+      if (!silent) log(list.length ? "Thiết bị đã chọn không phải Win68 HE hay Hero 68 HE (hoặc sai cổng điều khiển)." : "Chưa chọn thiết bị nào.", "w");
+      return false;
+    }
+    const { d, drv } = found;
     if (!d.opened) await d.open();
-    dev = d;
+    dev = d; driver = drv;
     dev.addEventListener("inputreport", onInput);
+    setLayout(drv);
     setConnectedUI(true);
-    log("Đã kết nối: " + (dev.productName || "AULA HE"), "o");
-    if (dev.productName && /60/.test(dev.productName) && !/68/.test(dev.productName))
-      log("Lưu ý: thiết bị báo tên “" + dev.productName + "”. Trang này dùng bố cục phím WIN68 HE.", "w");
-    await readDeviceState();
+    log("Đã kết nối: " + drv.name + (dev.productName ? " (" + dev.productName + ")" : ""), "o");
+    const ok = await drv.init();
+    log(ok ? "Đã lưu trạng thái đèn hiện tại để khôi phục khi dừng." : "Không đọc được trạng thái đèn (vẫn phát được bình thường).", ok ? "" : "w");
     return true;
   } catch (err) {
     log("Kết nối lỗi: " + err.message, "e");
-    if (/open|access|busy/i.test(err.message)) log("Thiết bị có thể đang bị driver/tab khác giữ. Hãy đóng chúng rồi thử lại.", "w");
+    if (/open|access|busy/i.test(err.message)) log("Bàn phím có thể đang bị driver/tab khác giữ. Hãy đóng trang driver Aula rồi thử lại.", "w");
     return false;
   }
 }
 
-async function readDeviceState() {
-  // độ sáng / tốc độ tối đa
-  const list = await query([10], d => d[0] === 10, 500);
-  if (list) {
-    const len = list[4], p = list.slice(5, 5 + len);
-    if (p.length >= 4) { maxBright = p[len - 1] || 4; maxSpeed = p[len - 2] || 4; }
-  }
-  // trạng thái đèn hiện tại (để khôi phục)
-  const light = await query([7, 1], d => d[0] === 7 && d[4] >= 12, 500);
-  savedLight = light ? light.slice(5, 17) : null;
-  // bảng màu Custom 1 hiện tại (để khôi phục)
-  savedTable = await readCustomTable(SLOT);
-  $("devMeta").textContent = "WIN68 HE · đã sẵn sàng phát";
-  log(savedLight ? "Đã lưu trạng thái đèn hiện tại để khôi phục khi dừng." : "Không đọc được trạng thái đèn (vẫn phát được bình thường).", savedLight ? "" : "w");
-}
-
-function readCustomTable(slot) {
-  return new Promise(res => {
-    const table = new Uint8Array(TABLE_BYTES), got = new Set();
-    const l = d => {
-      if (d[0] !== 9 || d[1] !== (0x80 | slot)) return;
-      const page = (d[2] << 8) | d[3], len = Math.min(d[4], CHUNK, d.length - 5);
-      const off = page * CHUNK;
-      if (off < TABLE_BYTES) table.set(d.subarray(5, 5 + Math.min(len, TABLE_BYTES - off)), off);
-      got.add(page);
-      if (got.size >= PAGES) finish(table);
-    };
-    const finish = v => { listeners.delete(l); clearTimeout(t); res(v); };
-    const t = setTimeout(() => finish(null), 1500);
-    listeners.add(l);
-    send([9, 0x80 | slot]).catch(() => finish(null));
-  });
-}
-
-function lightPacket(bytes12) { return pkt([7, 0, 0, 0, 14, ...bytes12]); }
-async function enterCustomMode() {
-  // mode 10, độ sáng tối đa (độ sáng thật chỉnh bằng phần mềm), nguồn bật
-  await send(lightPacket([MODE_CUSTOM, maxBright, maxSpeed, 255, 255, 255, 0, 0, 0, 0, 0, 0]));
-}
-
-let lastTable = null, lastFull = 0, busy = false, sentFrames = 0;
-async function sendTable(table) {
-  if (!dev || busy) return false;
+async function sendColors(colors) {
+  if (!dev || !driver || busy) return;
   busy = true;
-  const now = performance.now(), full = !lastTable || now - lastFull > 2000;
   try {
-    let n = 0;
-    for (let p = 0; p < PAGES; p++) {
-      const s = p * CHUNK, len = Math.min(CHUNK, TABLE_BYTES - s);
-      if (!full) {
-        let same = true;
-        for (let i = s; i < s + len; i++) if (table[i] !== lastTable[i]) { same = false; break; }
-        if (same) continue;
-      }
-      const b = new Uint8Array(63);
-      b[0] = 9; b[1] = SLOT; b[2] = (p >> 8) & 255; b[3] = p & 255; b[4] = len;
-      b.set(table.subarray(s, s + len), 5);
-      await send(b); n++;
-    }
-    if (full) lastFull = now;
-    lastTable = table.slice();
+    const n = await driver.frame(colors);
     sentFrames++; pktCount += n;
-    return true;
   } catch (err) {
     log("Gửi dữ liệu lỗi: " + err.message + " — đã dừng phát.", "e");
     stopAll(false);
-    return false;
   } finally { busy = false; }
 }
 
 async function restoreLight() {
-  if (!dev) return;
+  if (!dev || !driver) return;
   try {
-    if (savedTable) {
-      for (let p = 0; p < PAGES; p++) {
-        const s = p * CHUNK, len = Math.min(CHUNK, TABLE_BYTES - s);
-        const b = new Uint8Array(63);
-        b[0] = 9; b[1] = SLOT; b[2] = (p >> 8) & 255; b[3] = p & 255; b[4] = len;
-        b.set(savedTable.subarray(s, s + len), 5);
-        await send(b);
-      }
-    }
-    if (savedLight) await send(lightPacket([...savedLight]));
-    log(savedLight ? "Đã trả đèn về trạng thái trước khi phát." : "Đã dừng (đèn giữ khung hình cuối).", "o");
+    const ok = await driver.restore();
+    log(ok ? "Đã trả đèn về trạng thái trước khi phát." : "Đã dừng (đèn giữ khung hình cuối).", "o");
   } catch (err) { log("Khôi phục đèn lỗi: " + err.message, "e"); }
 }
 
 async function disconnect() {
   await stopAll(true);
   try { if (dev) { dev.removeEventListener("inputreport", onInput); await dev.close(); } } catch {}
-  dev = null; setConnectedUI(false); log("Đã ngắt kết nối.");
+  dev = null; driver = null; setConnectedUI(false); log("Đã ngắt kết nối.");
 }
 
 function setConnectedUI(on) {
   $("dot").classList.toggle("on", on);
-  $("devName").textContent = on ? (dev.productName || "AULA WIN68 HE") : "Chưa kết nối";
-  if (!on) $("devMeta").textContent = "AULA WIN68 HE · VID 2E3C · PID C365";
+  $("devName").textContent = on ? driver.name : "Chưa kết nối";
+  $("devMeta").textContent = on ? "Đã sẵn sàng phát" + (dev.productName ? " · " + dev.productName : "")
+                                : "Hỗ trợ: AULA Hero 68 HE · AULA Win68 HE";
   $("btnConnect").classList.toggle("hidden", on);
   $("btnDisconnect").classList.toggle("hidden", !on);
+  $("layoutSel").disabled = on;
 }
 
 if ("hid" in navigator) {
   navigator.hid.addEventListener("disconnect", e => {
-    if (dev && e.device === dev) { playing = false; dev = null; setConnectedUI(false); updateButtons(); log("Bàn phím đã bị rút ra.", "w"); }
+    if (dev && e.device === dev) { playing = false; dev = null; driver = null; setConnectedUI(false); updateButtons(); log("Bàn phím đã bị rút ra.", "w"); }
   });
 } else {
   $("nohid").classList.remove("hidden");
 }
-
 /* ======================================================================
    Nguồn hiệu ứng: GIF / ảnh / video / mẫu có sẵn
    Mỗi nguồn có: w, h, draw(ctx, tMs)
@@ -602,12 +691,19 @@ const Q = 0.5;
 const sampleCanvas = document.createElement("canvas");
 sampleCanvas.width = Math.round(KB.w * Q); sampleCanvas.height = Math.round(KB.h * Q);
 const sampleCtx = sampleCanvas.getContext("2d", { willReadFrequently: true });
-const KEY_RECTS = KEYS.map(([idx, name, x, y, w, h]) => {
-  const inset = 0.2 * Math.min(w, h);
-  return { idx, x0: Math.floor((x - KB.x0 + inset) * Q), y0: Math.floor((y - KB.y0 + inset) * Q),
-           x1: Math.ceil((x - KB.x0 + w - inset) * Q), y1: Math.ceil((y - KB.y0 + h - inset) * Q) };
-});
-const keyColors = KEYS.map(() => [0, 0, 0]);
+let KEYS = KEYS_HERO68, KEY_RECTS = [], keyColors = [];
+function setLayout(drv, redraw = true) {
+  KEYS = drv.keys;
+  KEY_RECTS = KEYS.map(([idx, name, x, y, w, h]) => {
+    const inset = 0.2 * Math.min(w, h);
+    return { idx, x0: Math.floor((x - KB.x0 + inset) * Q), y0: Math.floor((y - KB.y0 + inset) * Q),
+             x1: Math.ceil((x - KB.x0 + w - inset) * Q), y1: Math.ceil((y - KB.y0 + h - inset) * Q) };
+  });
+  keyColors = KEYS.map(() => [0, 0, 0]);
+  const sel = $("layoutSel"); if (sel) sel.value = drv.id;
+  if (redraw && !running) renderOnce();
+}
+setLayout(Hero68Driver, false);
 
 const opts = { bright: 1, sat: 1.2, speed: 1, fps: 30, gamma: true };
 const GAMMA_LUT = new Uint8Array(256);
@@ -651,15 +747,8 @@ function sampleKeys() {
   });
 }
 
-function buildTable() {
-  const t = new Uint8Array(TABLE_BYTES);
-  KEYS.forEach(([idx], k) => {
-    const c = keyColors[k], o = idx * 3;
-    if (o + 2 >= TABLE_BYTES) return;
-    if (opts.gamma) { t[o] = GAMMA_LUT[c[0]]; t[o + 1] = GAMMA_LUT[c[1]]; t[o + 2] = GAMMA_LUT[c[2]]; }
-    else { t[o] = c[0]; t[o + 1] = c[1]; t[o + 2] = c[2]; }
-  });
-  return t;
+function outColors() {          // màu gửi xuống LED (đã hiệu chỉnh gamma nếu bật)
+  return keyColors.map(c => opts.gamma ? [GAMMA_LUT[c[0]], GAMMA_LUT[c[1]], GAMMA_LUT[c[2]]] : c.slice());
 }
 
 /* ======================================================================
@@ -752,7 +841,7 @@ cv.addEventListener("wheel", e => {
    Vòng lặp — dùng Worker làm đồng hồ để tab ẩn vẫn chạy đủ nhịp
    ====================================================================== */
 let previewing = false, playing = false, running = false;
-let animT = 0, lastTick = 0, pktCount = 0, statT = performance.now(), statFrames = 0;
+let animT = 0, lastTick = 0, statT = performance.now(), statFrames = 0;
 const ticker = new Worker(URL.createObjectURL(new Blob([
   "let id=null;onmessage=e=>{clearInterval(id);id=null;if(e.data>0)id=setInterval(()=>postMessage(0),e.data);}"
 ], { type: "text/javascript" })));
@@ -771,7 +860,7 @@ async function tick() {
   if (!renderSource(animT)) return;
   sampleKeys();
   if (!document.hidden) drawPreview();
-  if (playing && dev && !busy) { const tbl = buildTable(); sendTable(tbl); statFrames++; }
+  if (playing && dev && !busy) { sendColors(outColors()); statFrames++; }
   if (now - statT > 1000) {
     const fps = statFrames * 1000 / (now - statT);
     $("stat").textContent = playing ? `Đang phát · ${fps.toFixed(0)} khung/s · ${(pktCount / Math.max(1, sentFrames)).toFixed(1)} gói/khung`
@@ -788,8 +877,8 @@ async function startPlay() {
   if (!dev) { const ok = await connect(false); if (!ok) return; }
   if (!source) usePreset(0);
   try {
-    await enterCustomMode();
-    lastTable = null; pktCount = 0; sentFrames = 0;
+    await driver.enter();
+    pktCount = 0; sentFrames = 0;
     playing = true; previewing = true;
     if (videoEl) videoEl.play().catch(() => {});
     startLoop(); updateButtons();
@@ -838,11 +927,12 @@ bindRange("bright", "vBright", v => v + "%", v => opts.bright = v / 100);
 bindRange("sat", "vSat", v => v + "%", v => opts.sat = v / 100);
 bindRange("speed", "vSpeed", v => (v / 100).toFixed(1) + "×", v => { opts.speed = v / 100; if (videoEl) videoEl.playbackRate = Math.max(0.1, opts.speed); });
 bindRange("fps", "vFps", v => String(v), v => { opts.fps = v; if (running) ticker.postMessage(Math.round(1000 / v)); });
-$("gamma").onchange = e => { opts.gamma = e.target.checked; lastTable = null; };
+$("gamma").onchange = e => { opts.gamma = e.target.checked; if (driver) driver.last = null; };
 
 window.addEventListener("resize", () => { sizeCanvas(); drawPreview(); });
 
 /* khởi động */
+$("layoutSel").onchange = e => setLayout(DRIVERS.find(d => d.id === e.target.value) || Hero68Driver);
 buildPresetCards();
 sizeCanvas();
 updateButtons();
