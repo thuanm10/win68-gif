@@ -116,6 +116,13 @@
           <option value="off">C · Tắt đèn chính</option>
           <option value="keep">D · Giữ nguyên hiệu ứng đang có</option>
         </select>
+        <span style="display:block;font-size:13px;color:var(--muted);margin-top:8px">Số gói mỗi khung (ít gói = ít chớp, ít màu hơn)</span>
+        <select id="pktSel" style="width:100%;margin-top:4px;padding:8px;border-radius:10px;background:var(--panel2);color:var(--text);border:1px solid var(--line);font:inherit">
+          <option value="2">2 gói · tối đa 11 màu (mặc định, mượt nhất)</option>
+          <option value="3">3 gói · tối đa 25 màu</option>
+          <option value="4">4 gói · tối đa 39 màu</option>
+          <option value="7">Không giới hạn · đủ màu (dễ chớp)</option>
+        </select>
         <label style="display:flex;gap:6px;align-items:center;margin-top:8px;font-size:13.5px;color:var(--muted)"><input id="pumpChk" type="checkbox" checked style="accent-color:var(--accent)"> Gửi liên tục (giữ khung hình, chống tắt)</label>
       </label>
       <ol class="steps">
@@ -357,6 +364,7 @@ const Hero68Driver = {
   method: "realtime",                                // "realtime" (0x08) | "write" (0x06, dự phòng)
   base: "custom",                                    // nền khi phát thời gian thực: custom | static | off | keep
   pump: true,                                        // gửi lặp liên tục để giữ khung hình
+  maxPackets: 2,                                     // số gói tối đa mỗi khung → gom màu cho vừa
   canTest: true,
   isConfig(d) { return d.collections.some(c => c.outputReports?.some(r => r.reportId === 9)); },
   async init() {
@@ -434,6 +442,9 @@ const Hero68Driver = {
     return Math.ceil(list.length / 11);
   },
   async frameRealtime(colors) {                      // màu thời gian thực (0x08/0x01), cả khung mỗi lần
+    // 68 byte vị trí + 4 byte mỗi nhóm màu, mỗi gói 56 byte → gom màu cho vừa số gói đã chọn
+    const maxGroups = this.maxPackets >= 7 ? 999 : Math.max(1, Math.floor((this.maxPackets * 56 - this.keys.length) / 4));
+    colors = quantizeColors(colors, maxGroups);
     const groups = new Map();
     this.keys.forEach(([pos], k) => {
       const c = colors[k], id = (c[0] << 16) | (c[1] << 8) | c[2];
@@ -460,6 +471,38 @@ const Hero68Driver = {
     return !!this.savedLight;
   },
 };
+
+/* Gom danh sách màu về tối đa k màu (gộp dần 2 nhóm gần nhau nhất, có trọng số) */
+function quantizeColors(colors, k) {
+  let cl = [];
+  const idxOf = new Map();
+  colors.forEach((c, i) => {
+    const id = (c[0] << 16) | (c[1] << 8) | c[2];
+    if (!idxOf.has(id)) { idxOf.set(id, cl.length); cl.push({ r: c[0], g: c[1], b: c[2], n: 0, keys: [] }); }
+    const g = cl[idxOf.get(id)]; g.n++; g.keys.push(i);
+  });
+  if (cl.length <= k) return colors;
+  const black = q => q.r + q.g + q.b < 6;
+  while (cl.length > k) {
+    let bi = 0, bj = 1, bd = Infinity;
+    for (let i = 0; i < cl.length; i++) for (let j = i + 1; j < cl.length; j++) {
+      const a = cl[i], b = cl[j];
+      if (black(a) !== black(b)) continue;           // giữ nguyên phím tắt (đen) cho tương phản
+      const d = ((a.r - b.r) ** 2 * 2 + (a.g - b.g) ** 2 * 4 + (a.b - b.b) ** 2 * 3) * (a.n * b.n) / (a.n + b.n);
+      if (d < bd) { bd = d; bi = i; bj = j; }
+    }
+    if (!isFinite(bd)) break;
+    const a = cl[bi], b = cl[bj], n = a.n + b.n;
+    // lấy màu của nhóm sáng hơn làm gốc để màu không bị xỉn
+    const w = (a.r + a.g + a.b) * a.n >= (b.r + b.g + b.b) * b.n ? 0.7 : 0.3;
+    const wa = a.n * w, wb = b.n * (1 - w), sw = wa + wb;
+    a.r = Math.round((a.r * wa + b.r * wb) / sw); a.g = Math.round((a.g * wa + b.g * wb) / sw); a.b = Math.round((a.b * wa + b.b * wb) / sw);
+    a.n = n; a.keys.push(...b.keys); cl.splice(bj, 1);
+  }
+  const out = colors.map(c => c.slice());
+  for (const g of cl) for (const i of g.keys) out[i] = [g.r, g.g, g.b];
+  return out;
+}
 
 const DRIVERS = [Hero68Driver, Win68Driver];
 const HID_FILTERS = DRIVERS.map(d => ({ vendorId: d.vid, productId: d.pid }));
@@ -1002,6 +1045,7 @@ $("baseSel").onchange = async e => {
   Hero68Driver.base = e.target.value;
   if (playing && driver === Hero68Driver) { await pauseSend(async () => driver.enter()); }
 };
+$("pktSel").onchange = e => { Hero68Driver.maxPackets = +e.target.value; log("Số gói mỗi khung: " + (e.target.value === "7" ? "không giới hạn" : e.target.value)); };
 $("pumpChk").onchange = e => { Hero68Driver.pump = e.target.checked; log("Gửi liên tục: " + (e.target.checked ? "bật" : "tắt")); };
 async function pauseSend(fn) {
   while (busy) await sleep(5);
